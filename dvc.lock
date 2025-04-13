@@ -1,0 +1,19 @@
+schema: '2.0'
+stages:
+  preprocess:
+    cmd: python ml_part/data_preprocessing.py
+    deps:
+    - path: ml_part/config.py
+      hash: md5
+      md5: 398656ed0977a2e60b8f3dd253af94a8
+      size: 519
+    - path: ml_part/data_preprocessing.py
+      hash: md5
+      md5: d26f94ba982b8ccc3322aa7c280ea720
+      size: 6420
+    outs:
+    - path: ml_part/data
+      hash: md5
+      md5: a786fe9cad78d551144970e24fc7ae2d.dir
+      size: 1715082130
+      nfiles: 50002

@@ -1,0 +1,25 @@
+stages:
+  preprocess:
+    cmd: python ml_part/data_preprocessing.py
+    deps:
+      - ml_part/data_preprocessing.py
+      - ml_part/config.py
+    outs:
+      - ml_part/data:
+          persist: true
+  
+  train:
+    cmd: python ml_part/model.py
+    deps:
+      - ml_part/model.py
+      - ml_part/config.py
+      - ml_part/data
+    outs:
+      - ml_part/checkpoints:
+          persist: true
+    metrics:
+      - ml_part/metrics.json:
+          cache: false
+    plots:
+      - ml_part/plots:
+          cache: false 

@@ -9,6 +9,7 @@ from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropou
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 import matplotlib.pyplot as plt
 import numpy as np
+import json
 import config
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
@@ -149,13 +150,21 @@ def evaluate_model(model, test_generator):
     Args:
         model: Trained Keras model
         test_generator: Test data generator
+    
+    Returns:
+        results: Evaluation results dictionary
     """
     # Evaluate the model
-    results = model.evaluate(test_generator)
-    print(f"Test Loss: {results[0]:.4f}")
-    print(f"Test Accuracy: {results[1]:.4f}")
+    test_loss, test_accuracy = model.evaluate(test_generator)
     
-    return results
+    print(f"Test Loss: {test_loss:.4f}")
+    print(f"Test Accuracy: {test_accuracy:.4f}")
+    
+    # Return results as a dictionary
+    return {
+        "test_loss": float(test_loss),
+        "test_accuracy": float(test_accuracy)
+    }
 
 def plot_training_history(history):
     """
@@ -165,7 +174,7 @@ def plot_training_history(history):
         history: Training history
     """
     # Create directory for plots
-    os.makedirs("plots", exist_ok=True)
+    os.makedirs("ml_part/plots", exist_ok=True)
     
     # Plot training & validation accuracy
     plt.figure(figsize=(12, 4))
@@ -188,13 +197,82 @@ def plot_training_history(history):
     plt.legend(['Train', 'Validation'], loc='upper left')
     
     plt.tight_layout()
-    plt.savefig('plots/training_history.png')
+    plt.savefig('ml_part/plots/training_history.png')
     plt.close()
+    
+    # Save accuracy and loss history as separate plots for DVC
+    # Accuracy plot
+    plt.figure(figsize=(10, 6))
+    plt.plot(history.history['accuracy'])
+    plt.plot(history.history['val_accuracy'])
+    plt.title('Model Accuracy')
+    plt.ylabel('Accuracy')
+    plt.xlabel('Epoch')
+    plt.legend(['Train', 'Validation'], loc='upper left')
+    plt.grid(True)
+    plt.savefig('ml_part/plots/accuracy.png')
+    plt.close()
+    
+    # Loss plot
+    plt.figure(figsize=(10, 6))
+    plt.plot(history.history['loss'])
+    plt.plot(history.history['val_loss'])
+    plt.title('Model Loss')
+    plt.ylabel('Loss')
+    plt.xlabel('Epoch')
+    plt.legend(['Train', 'Validation'], loc='upper left')
+    plt.grid(True)
+    plt.savefig('ml_part/plots/loss.png')
+    plt.close()
+
+def save_metrics(train_history, eval_results):
+    """
+    Save metrics in JSON format for DVC tracking.
+    
+    Args:
+        train_history: Training history object
+        eval_results: Evaluation results dictionary
+    """
+    # Extract final values from training history
+    final_epoch = len(train_history.history['accuracy'])
+    train_accuracy = float(train_history.history['accuracy'][-1])
+    val_accuracy = float(train_history.history['val_accuracy'][-1])
+    train_loss = float(train_history.history['loss'][-1])
+    val_loss = float(train_history.history['val_loss'][-1])
+    
+    # Create metrics dictionary
+    metrics = {
+        "training": {
+            "epochs_completed": final_epoch,
+            "final_accuracy": train_accuracy,
+            "final_loss": train_loss
+        },
+        "validation": {
+            "final_accuracy": val_accuracy,
+            "final_loss": val_loss
+        },
+        "testing": {
+            "accuracy": eval_results["test_accuracy"],
+            "loss": eval_results["test_loss"]
+        },
+        "parameters": {
+            "img_height": config.IMG_HEIGHT,
+            "img_width": config.IMG_WIDTH,
+            "batch_size": config.BATCH_SIZE,
+            "learning_rate": config.LEARNING_RATE,
+            "max_epochs": config.EPOCHS
+        }
+    }
+    
+    # Save metrics to JSON file
+    with open('ml_part/metrics.json', 'w') as f:
+        json.dump(metrics, f, indent=4)
+        
+    print(f"Metrics saved to ml_part/metrics.json")
 
 def main():
     """
     Main function to run the training pipeline.
-    Note: You need to manually run data_preprocessing.py first.
     """
     # Set random seeds for reproducibility
     tf.random.set_seed(config.RANDOM_SEED)
@@ -214,10 +292,13 @@ def main():
     
     # Evaluate the model
     print("Evaluating model...")
-    evaluate_model(model, test_generator)
+    eval_results = evaluate_model(model, test_generator)
     
     # Plot training history
     plot_training_history(history)
+    
+    # Save metrics for DVC
+    save_metrics(history, eval_results)
     
     print(f"Model saved to {config.CHECKPOINT_PATH}")
     print("Training complete!")
