@@ -1,0 +1,22 @@
+{
+    "training": {
+        "epochs_completed": 10,
+        "final_accuracy": 0.8013125061988831,
+        "final_loss": 0.42828863859176636
+    },
+    "validation": {
+        "final_accuracy": 0.8166583180427551,
+        "final_loss": 0.41199058294296265
+    },
+    "testing": {
+        "accuracy": 0.8489999771118164,
+        "loss": 0.3484511375427246
+    },
+    "parameters": {
+        "img_height": 150,
+        "img_width": 150,
+        "batch_size": 32,
+        "learning_rate": 0.001,
+        "max_epochs": 10
+    }
+}
