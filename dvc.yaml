@@ -5,7 +5,7 @@ stages:
       - ml_part/data_preprocessing.py
       - ml_part/config.py
     outs:
-      - ml_part/data:
+      - ml_part/data:      # Relative path
           persist: true
   
   train:
@@ -15,11 +15,11 @@ stages:
       - ml_part/config.py
       - ml_part/data
     outs:
-      - ml_part/checkpoints:
+      - ml_part/checkpoints:  # Relative path
           persist: true
     metrics:
-      - ml_part/metrics.json:
+      - ml_part/metrics.json:   # Relative path
           cache: false
     plots:
-      - ml_part/plots:
-          cache: false 
+      - ml_part/plots:         # Relative path
+          cache: false

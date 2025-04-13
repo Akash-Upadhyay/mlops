@@ -17,5 +17,21 @@ pipeline {
                 sh 'ls -la'
             }
         }
+        
+        stage('DVC Pull') {
+            steps {
+                // Pull data and models from DVC remote storage
+                echo 'Pulling data and models from DVC remote...'
+                sh 'dvc pull'
+            }
+        }
+        
+        stage('DVC Reproduce') {
+            steps {
+                // Reproduce the DVC pipeline
+                echo 'Reproducing the DVC pipeline...'
+                sh 'dvc repro'
+            }
+        }
     }
 }

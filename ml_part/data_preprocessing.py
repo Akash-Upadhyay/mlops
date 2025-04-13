@@ -194,7 +194,8 @@ def prepare_dataset():
     """
     Main function to prepare the dataset.
     """
-    download_dataset()
+    # Comment out dataset download since it's already downloaded
+    # download_dataset()
     organize_dataset()
     return create_data_generators()
 
