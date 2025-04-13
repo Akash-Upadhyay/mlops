@@ -1,0 +1,277 @@
+.performance-container {
+  width: 90%;
+  max-width: 1000px;
+  background-color: #1e2127;
+  border-radius: 10px;
+  padding: 20px;
+  margin-top: 20px;
+  color: white;
+}
+
+.refresh-button {
+  background-color: #61dafb;
+  color: #282c34;
+  border: none;
+  padding: 8px 16px;
+  font-size: 14px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.refresh-button:hover {
+  background-color: #4fa8d1;
+}
+
+.loading {
+  color: #61dafb;
+  margin: 20px 0;
+  font-style: italic;
+}
+
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.metric-card {
+  background-color: #282c34;
+  border-radius: 8px;
+  padding: 15px;
+  text-align: center;
+  border-left: 4px solid #61dafb;
+}
+
+.metric-card h3 {
+  margin-top: 0;
+  font-size: 16px;
+  color: #999;
+}
+
+.metric-value {
+  font-size: 24px;
+  font-weight: bold;
+  color: #61dafb;
+}
+
+.distribution-section {
+  background-color: #282c34;
+  border-radius: 8px;
+  padding: 15px;
+  margin-top: 10px;
+}
+
+.distribution-section h3 {
+  margin-top: 0;
+  font-size: 18px;
+  border-bottom: 1px solid #444;
+  padding-bottom: 8px;
+}
+
+.distribution-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.distribution-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.class-label {
+  width: 50px;
+  text-transform: capitalize;
+  font-weight: bold;
+}
+
+.bar-container {
+  flex-grow: 1;
+  height: 24px;
+  background-color: #1e2127;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.bar {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.cat-bar {
+  background-color: #61dafb;
+}
+
+.dog-bar {
+  background-color: #ff6b6b;
+}
+
+.percentage {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  font-weight: bold;
+  color: #fff;
+  text-shadow: 0 0 2px rgba(0,0,0,0.7);
+}
+
+.count {
+  width: 80px;
+  text-align: right;
+  font-size: 14px;
+  color: #888;
+}
+
+.recent-predictions {
+  background-color: #282c34;
+  border-radius: 8px;
+  padding: 15px;
+  overflow: auto;
+}
+
+.recent-predictions h3 {
+  margin-top: 0;
+  font-size: 18px;
+  border-bottom: 1px solid #444;
+  padding-bottom: 8px;
+}
+
+.predictions-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+.predictions-table th,
+.predictions-table td {
+  padding: 10px;
+  text-align: left;
+  border-bottom: 1px solid #444;
+}
+
+.predictions-table th {
+  color: #61dafb;
+  font-weight: bold;
+  background-color: #1e2127;
+}
+
+.predictions-table tr:hover {
+  background-color: #32363e;
+}
+
+.predictions-table .filename {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cat {
+  color: #61dafb;
+  font-weight: bold;
+}
+
+.dog {
+  color: #ff6b6b;
+  font-weight: bold;
+}
+
+.correct {
+  color: #4caf50;
+  font-weight: bold;
+}
+
+.incorrect {
+  color: #f44336;
+  font-weight: bold;
+}
+
+.unknown {
+  color: #888;
+  font-style: italic;
+}
+
+/* Add styles for navigation buttons */
+.navigation {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.navigation button {
+  background-color: #1e2127;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.navigation button.active {
+  background-color: #61dafb;
+  color: #1e2127;
+  font-weight: bold;
+}
+
+.navigation button:hover:not(.active) {
+  background-color: #32363e;
+}
+
+/* Feedback buttons */
+.feedback-container {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #444;
+}
+
+.feedback-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.feedback-button {
+  padding: 8px 16px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.feedback-button:first-child {
+  background-color: #61dafb;
+  color: #1e2127;
+}
+
+.feedback-button:last-child {
+  background-color: #ff6b6b;
+  color: white;
+}
+
+.feedback-button:hover {
+  opacity: 0.8;
+}
+
+.feedback-sent {
+  margin-top: 15px;
+  padding: 10px;
+  background-color: #4caf50;
+  color: white;
+  border-radius: 4px;
+  text-align: center;
+} 

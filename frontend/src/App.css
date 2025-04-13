@@ -1,0 +1,169 @@
+.App {
+  text-align: center;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  color: white;
+  padding: 20px;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+h1 {
+  margin: 20px 0;
+  color: #61dafb;
+}
+
+.container {
+  background-color: #1e2127;
+  border-radius: 10px;
+  padding: 30px;
+  width: 90%;
+  max-width: 600px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.file-upload {
+  margin: 20px 0;
+}
+
+.file-upload label {
+  display: inline-block;
+  background-color: #61dafb;
+  color: #282c34;
+  padding: 12px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.3s;
+}
+
+.file-upload label:hover {
+  background-color: #4fa8d1;
+}
+
+.file-upload input[type="file"] {
+  display: none;
+}
+
+.preview-container {
+  margin: 20px 0;
+}
+
+.image-preview {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 5px;
+  border: 2px solid #61dafb;
+}
+
+.submit-button {
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 5px;
+  margin: 20px 0;
+  transition: background-color 0.3s;
+}
+
+.submit-button:hover:not(:disabled) {
+  background-color: #45a049;
+}
+
+.submit-button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.error-message {
+  background-color: #f44336;
+  color: white;
+  padding: 10px;
+  border-radius: 5px;
+  margin: 20px 0;
+}
+
+.result-container {
+  margin-top: 20px;
+  background-color: #313640;
+  padding: 20px;
+  border-radius: 5px;
+  border-left: 5px solid #61dafb;
+}
+
+.prediction {
+  margin: 10px 0;
+}
+
+.prediction-text {
+  font-size: 18px;
+}
+
+.animal-type {
+  text-transform: uppercase;
+  font-weight: bold;
+  color: #61dafb;
+  font-size: 24px;
+}
+
+.confidence {
+  font-size: 16px;
+  color: #888;
+}
+
+.navigation {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.navigation button {
+  background-color: #1e2127;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.navigation button.active {
+  background-color: #61dafb;
+  color: #1e2127;
+  font-weight: bold;
+}
+
+.navigation button:hover:not(.active) {
+  background-color: #32363e;
+}

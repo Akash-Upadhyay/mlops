@@ -6,34 +6,45 @@ This project demonstrates an end-to-end MLOps implementation with three main com
 
 ```
 mlops_project/
-├── ml_part/                   # Machine learning model development
-│   ├── config.py              # Configuration parameters
-│   ├── data_preprocessing.py  # Data download and preprocessing
-│   ├── model.py               # Model definition and training
-│   ├── checkpoints/           # Saved model files
-│   │   └── model.h5           # Trained model weights
-│   │
-│   └── README.md              # ML documentation
+├── ml_part/                          # Machine learning model development
+│   ├── config.py                     # Configuration parameters
+│   ├── data_preprocessing.py         # Data download and preprocessing
+│   ├── model.py                      # Model definition and training
+│   ├── checkpoints/                  # Saved model files
+│   │   └── model.h5                  # Trained model weights
+│   ├── data/                         # Dataset directory
+│   │   ├── train/                    # Training images
+│   │   │   ├── cats/                 # Cat training images
+│   │   │   └── dogs/                 # Dog training images
+│   │   └── test/                     # Test images
+│   │       ├── cats/                 # Cat test images
+│   │       └── dogs/                 # Dog test images
+│   ├── plots/                        # Training visualization plots
+│   └── README.md                     # ML documentation
 │
-├── backend/                   # API services for model serving
-│   ├── main.py                # FastAPI application
-│   ├── requirements.txt       # Backend dependencies
-│   └── README.md              # Backend documentation
+├── backend/                          # API services for model serving
+│   ├── main.py                       # FastAPI application with endpoints
+│   ├── requirements.txt              # Backend dependencies
+│   └── README.md                     # Backend documentation
 │
-├── frontend/                  # User interface
-│   ├── src/                   # React source code
-│   │   ├── components/        # React components
-│   │   │   ├── Classifier.tsx # Image classification component
-│   │   │   ├── Performance.tsx# Model performance dashboard
-│   │   │   └── Performance.css# Dashboard styles
-│   │   ├── App.tsx            # Main application component
-│   │   └── App.css            # Application styles
-│   ├── package.json           # Frontend dependencies
-│   └── README.md              # Frontend documentation
+├── frontend/                         # User interface
+│   ├── src/                          # React source code
+│   │   ├── components/               # React components
+│   │   │   ├── Classifier.tsx        # Image classification component
+│   │   │   ├── Performance.tsx       # Model performance dashboard
+│   │   │   └── Performance.css       # Dashboard styles
+│   │   ├── App.tsx                   # Main application component
+│   │   ├── App.css                   # Application styles
+│   │   ├── index.tsx                 # React entry point
+│   │   └── index.css                 # Global styles
+│   ├── public/                       # Static public assets
+│   ├── package.json                  # Frontend dependencies
+│   ├── tsconfig.json                 # TypeScript configuration
+│   └── README.md                     # Frontend documentation
 │
-├── activate_env.sh            # Script to activate virtual environment
-├── requirements.txt           # Core Python dependencies
-└── README.md                  # Main project documentation
+├── activate_env.sh                   # Script to activate virtual environment
+├── requirements.txt                  # Core Python dependencies
+└── README.md                         # Main project documentation
 ```
 
 ## Environment Setup
@@ -57,6 +68,7 @@ The main dependencies installed in the environment are:
 - requests
 - scikit-learn
 - pillow
+- pillow-avif-plugin
 - fastapi
 - uvicorn
 

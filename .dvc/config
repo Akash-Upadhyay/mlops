@@ -1,0 +1,5 @@
+[core]
+    remote = localremote
+    autostage = true
+['remote "localremote"']
+    url = /home/akash/ml_ops_data_dvc
