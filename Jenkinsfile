@@ -1,6 +1,9 @@
 pipeline {
     agent any  // Use any available agent (node) to run the pipeline
 
+    environment {
+    PATH = "/var/lib/jenkins/.local/bin:$PATH"
+    }
     stages {
         stage('Checkout') {
             steps {
