@@ -13,35 +13,35 @@ from pathlib import Path
 import config
 from PIL import Image
 
-def download_dataset():
-    """
-    Downloads the cats and dogs dataset from Kaggle.
-    You need to have a kaggle.json file in your ~/.kaggle directory.
-    """
-    # Create data directory if it doesn't exist
-    os.makedirs(config.DATA_DIR, exist_ok=True)
-    
-    # Dataset URL (Kaggle's "Dogs vs. Cats" dataset)
-    # We'll use the Microsoft's dataset which is publicly available
-    url = "https://download.microsoft.com/download/3/E/1/3E1C3F21-ECDB-4869-8368-6DEBA77B919F/kagglecatsanddogs_5340.zip"
-    
-    print("Downloading cats and dogs dataset...")
-    response = requests.get(url, stream=True)
-    zip_path = os.path.join(config.DATA_DIR, "cats_and_dogs.zip")
-    
-    with open(zip_path, "wb") as f:
-        for chunk in response.iter_content(chunk_size=1024):
-            if chunk:
-                f.write(chunk)
-    
-    # Extract the dataset
-    print("Extracting dataset...")
-    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-        zip_ref.extractall(config.DATA_DIR)
-    
-    # Remove the zip file to save space
-    os.remove(zip_path)
-    print("Dataset downloaded and extracted.")
+# def download_dataset():
+#     """
+#     Downloads the cats and dogs dataset from Kaggle.
+#     You need to have a kaggle.json file in your ~/.kaggle directory.
+#     """
+#     # Create data directory if it doesn't exist
+#     os.makedirs(config.DATA_DIR, exist_ok=True)
+#     
+#     # Dataset URL (Kaggle's "Dogs vs. Cats" dataset)
+#     # We'll use the Microsoft's dataset which is publicly available
+#     url = "https://download.microsoft.com/download/3/E/1/3E1C3F21-ECDB-4869-8368-6DEBA77B919F/kagglecatsanddogs_5340.zip"
+#     
+#     print("Downloading cats and dogs dataset...")
+#     response = requests.get(url, stream=True)
+#     zip_path = os.path.join(config.DATA_DIR, "cats_and_dogs.zip")
+#     
+#     with open(zip_path, "wb") as f:
+#         for chunk in response.iter_content(chunk_size=1024):
+#             if chunk:
+#                 f.write(chunk)
+#     
+#     # Extract the dataset
+#     print("Extracting dataset...")
+#     with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+#         zip_ref.extractall(config.DATA_DIR)
+#     
+#     # Remove the zip file to save space
+#     os.remove(zip_path)
+#     print("Dataset downloaded and extracted.")
 
 def is_valid_image(file_path):
     """
@@ -194,9 +194,18 @@ def prepare_dataset():
     """
     Main function to prepare the dataset.
     """
-    # Comment out dataset download since it's already downloaded
-    # download_dataset()
-    organize_dataset()
+    # Dataset is now pulled using DVC pull instead of downloading
+    # Ensure data directories exist
+    os.makedirs(config.TRAIN_DIR, exist_ok=True)
+    os.makedirs(config.TEST_DIR, exist_ok=True)
+    
+    # If the dataset is not organized, organize it
+    if not os.path.exists(os.path.join(config.TRAIN_DIR, "cats")) or not os.path.exists(os.path.join(config.TRAIN_DIR, "dogs")):
+        print("Organizing dataset...")
+        organize_dataset()
+    else:
+        print("Dataset already organized.")
+    
     return create_data_generators()
 
 if __name__ == "__main__":

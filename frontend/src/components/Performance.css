@@ -274,4 +274,163 @@
   color: white;
   border-radius: 4px;
   text-align: center;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.retrain-button {
+  padding: 10px 20px;
+  font-size: 1rem;
+  background-color: #2e7d32;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.retrain-button:hover {
+  background-color: #1b5e20;
+}
+
+.retrain-button:disabled {
+  background-color: #9e9e9e;
+  cursor: not-allowed;
+}
+
+.training-status {
+  margin-bottom: 20px;
+  padding: 15px;
+  border-radius: 4px;
+  background-color: #f5f5f5;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.training-status h3 {
+  margin-top: 0;
+  color: #333;
+}
+
+.training-status p {
+  margin: 8px 0;
+}
+
+.training-status.running {
+  border-left: 5px solid #2196f3;
+}
+
+.training-status.completed {
+  border-left: 5px solid #4caf50;
+}
+
+.training-status.failed {
+  border-left: 5px solid #f44336;
+}
+
+.training-status .error {
+  color: #f44336;
+  font-weight: bold;
+}
+
+.progress-container {
+  width: 100%;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  margin: 15px 0;
+  overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+  height: 30px;
+  position: relative;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #4CAF50 0%, #8BC34A 100%);
+  border-radius: 8px;
+  transition: width 0.8s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.progress-text {
+  position: absolute;
+  width: 100%;
+  text-align: center;
+  font-weight: bold;
+  color: #333;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.7);
+}
+
+.training-status h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.training-status h3 span {
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  color: white;
+}
+
+.training-status h3 span.running {
+  background-color: #2196f3;
+}
+
+.training-status h3 span.starting {
+  background-color: #ff9800;
+}
+
+.training-status h3 span.completed {
+  background-color: #4caf50;
+}
+
+.training-status h3 span.failed {
+  background-color: #f44336;
+}
+
+.parameters-section {
+  background-color: white;
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.parameters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.parameter-item {
+  display: flex;
+  flex-direction: column;
+  background-color: #f9f9f9;
+  padding: 10px 15px;
+  border-radius: 6px;
+  border-left: 4px solid #3f51b5;
+}
+
+.parameter-label {
+  font-weight: bold;
+  color: #616161;
+  font-size: 0.9rem;
+  margin-bottom: 5px;
+}
+
+.parameter-value {
+  font-size: 1.1rem;
+  color: #333;
 } 

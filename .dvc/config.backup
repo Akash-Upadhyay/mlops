@@ -1,7 +1,9 @@
 [core]
     autostage = true
     remote = gdrive_remote
-['remote "gdrive_remote"']
+
+[remote "gdrive_remote"]
     url = gdrive://1X_GPhxH7SVhuVOC9Gfsb30EfHENkAVyY
     gdrive_use_service_account = true
-    gdrive_service_account_json_file_path = /home/akash/Desktop/SPE/SPE/civil-entry-455502-m0-8973a0b4013c.json
+    gdrive_service_account_json_file = /home/akash/Desktop/SPE/SPE/civil-entry-455502-m0-8973a0b4013c.json
+

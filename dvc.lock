@@ -1,7 +1,7 @@
 schema: '2.0'
 stages:
   preprocess:
-    cmd: python ml_part/data_preprocessing.py
+    cmd: python3 ml_part/data_preprocessing.py
     deps:
     - path: ml_part/config.py
       hash: md5
@@ -9,8 +9,8 @@ stages:
       size: 535
     - path: ml_part/data_preprocessing.py
       hash: md5
-      md5: 47f3d25209da209e995f59de28e8435a
-      size: 6487
+      md5: 62f64f4431169c1fc8fcb5ddff4c4dc3
+      size: 6941
     outs:
     - path: ml_part/data
       hash: md5
@@ -18,7 +18,7 @@ stages:
       size: 1715082130
       nfiles: 50002
   train:
-    cmd: python ml_part/model.py
+    cmd: python3 ml_part/model.py
     deps:
     - path: ml_part/config.py
       hash: md5
@@ -36,15 +36,15 @@ stages:
     outs:
     - path: ml_part/checkpoints
       hash: md5
-      md5: f01d7ac1621382175b10b4a261635d96.dir
+      md5: 0073dea53c6321873beb6df825a1d439.dir
       size: 228458687
       nfiles: 3
     - path: ml_part/metrics.json
       hash: md5
-      md5: 29173456ceacd904ac4b527f3eff9a4e
+      md5: 8aa81a25c209ce999d67eaac8d63940a
       size: 524
     - path: ml_part/plots
       hash: md5
-      md5: e52feaaaaa1c8661ec655a78d445191c.dir
-      size: 125559
+      md5: 27007c8550029e2fbccdda118b2e1e79.dir
+      size: 125274
       nfiles: 3

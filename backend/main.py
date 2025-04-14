@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 import tensorflow as tf
 import numpy as np
@@ -8,9 +8,11 @@ import uvicorn
 import os
 import sys
 import time
+import subprocess
 from datetime import datetime
 from typing import Dict, List, Optional
 from pydantic import BaseModel
+import json
 
 # Add the project root to path so we can import from ml_part
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -55,6 +57,17 @@ class ModelPerformance(BaseModel):
 class FeedbackRequest(BaseModel):
     prediction_id: str
     ground_truth: str
+
+class RetrainResponse(BaseModel):
+    status: str
+    job_id: str
+    message: str
+
+class RetrainRequest(BaseModel):
+    force: bool = False  # Whether to force retraining even if no changes detected
+
+# Maintain a list of training jobs
+training_jobs = {}
 
 @app.on_event("startup")
 async def startup_event():
@@ -141,7 +154,7 @@ async def predict(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing image: {str(e)}")
 
-@app.get("/performance/", response_model=ModelPerformance)
+@app.get("/performance/")
 async def get_performance():
     """
     Get model performance metrics.
@@ -181,6 +194,26 @@ async def get_performance():
         accuracy=accuracy
     )
 
+@app.get("/metrics/")
+async def get_metrics():
+    """
+    Serve metrics data from the metrics.json file.
+    """
+    try:
+        metrics_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 
+                               "ml_part", "metrics.json")
+        
+        if not os.path.exists(metrics_path):
+            raise HTTPException(status_code=404, detail="Metrics file not found")
+        
+        # Read the metrics.json file
+        with open(metrics_path, 'r') as f:
+            metrics_data = json.load(f)
+            
+        return metrics_data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reading metrics file: {str(e)}")
+
 @app.post("/feedback/")
 async def provide_feedback(feedback: FeedbackRequest):
     """
@@ -196,6 +229,76 @@ async def provide_feedback(feedback: FeedbackRequest):
             return {"message": "Feedback recorded successfully"}
     
     raise HTTPException(status_code=404, detail=f"Prediction with ID {feedback.prediction_id} not found")
+
+async def run_dvc_training(job_id: str, force: bool = False):
+    """
+    Run DVC pipeline in the background.
+    """
+    try:
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+        training_jobs[job_id] = {"status": "running", "started_at": datetime.now().isoformat()}
+        
+        # Change to project root directory
+        os.chdir(project_root)
+        
+        # Pull data from DVC remote
+        subprocess.run(["dvc", "pull"], check=True)
+        
+        # Run DVC reproduce with or without force flag
+        if force:
+            subprocess.run(["dvc", "repro", "--force"], check=True)
+        else:
+            subprocess.run(["dvc", "repro"], check=True)
+            
+        # Push changes back to DVC remote
+        subprocess.run(["dvc", "push"], check=True)
+        
+        # Update job status
+        training_jobs[job_id]["status"] = "completed"
+        training_jobs[job_id]["completed_at"] = datetime.now().isoformat()
+        
+        # Reload the model
+        global model
+        model_path = os.path.join(project_root, "ml_part", "checkpoints", "model.h5")
+        model = tf.keras.models.load_model(model_path)
+        
+    except Exception as e:
+        training_jobs[job_id]["status"] = "failed"
+        training_jobs[job_id]["error"] = str(e)
+
+@app.post("/retrain/", response_model=RetrainResponse)
+async def retrain_model(request: RetrainRequest, background_tasks: BackgroundTasks):
+    """
+    Trigger retraining of the model using DVC pipeline.
+    This is an asynchronous operation that runs in the background.
+    """
+    job_id = f"train_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    
+    # Start training in the background
+    background_tasks.add_task(run_dvc_training, job_id, request.force)
+    
+    return RetrainResponse(
+        status="started",
+        job_id=job_id,
+        message="Model retraining started in the background. Check job status endpoint for updates."
+    )
+
+@app.get("/training-status/{job_id}")
+async def get_training_status(job_id: str):
+    """
+    Get the status of a training job.
+    """
+    if job_id not in training_jobs:
+        raise HTTPException(status_code=404, detail=f"Training job {job_id} not found")
+    
+    return training_jobs[job_id]
+
+@app.get("/training-jobs/")
+async def get_training_jobs():
+    """
+    Get all training jobs.
+    """
+    return training_jobs
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True) 

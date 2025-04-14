@@ -1,40 +1,55 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './Performance.css';
 
-interface Prediction {
-  id: string;
-  timestamp: string;
-  filename: string;
-  prediction: string;
-  confidence: number;
-  processing_time: number;
-  ground_truth: string | null;
+interface Metrics {
+  training: {
+    epochs_completed: number;
+    final_accuracy: number;
+    final_loss: number;
+  };
+  validation: {
+    final_accuracy: number;
+    final_loss: number;
+  };
+  testing: {
+    accuracy: number;
+    loss: number;
+  };
+  parameters: {
+    img_height: number;
+    img_width: number;
+    batch_size: number;
+    learning_rate: number;
+    max_epochs: number;
+  };
 }
 
-interface ModelPerformance {
-  total_predictions: number;
-  avg_confidence: number;
-  avg_processing_time: number;
-  class_distribution: Record<string, number>;
-  recent_predictions: Prediction[];
-  accuracy: number | null;
+interface TrainingJob {
+  status: string;
+  started_at: string;
+  completed_at?: string;
+  error?: string;
+  progress?: number;
 }
 
 const Performance: React.FC = () => {
-  const [performance, setPerformance] = useState<ModelPerformance | null>(null);
+  const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [retraining, setRetraining] = useState<boolean>(false);
+  const [trainingJob, setTrainingJob] = useState<TrainingJob | null>(null);
+  const [trainingJobId, setTrainingJobId] = useState<string | null>(null);
   
-  const fetchPerformanceData = async () => {
+  const fetchMetricsData = useCallback(async () => {
     setLoading(true);
     setError(null);
     
     try {
-      const response = await fetch('/performance/');
+      const response = await fetch('/metrics/');
       
       if (!response.ok) {
         if (response.status === 404) {
-          setError('No prediction data available yet. Make some predictions first!');
+          setError('No metrics data available yet. Train the model first!');
           setLoading(false);
           return;
         }
@@ -42,24 +57,104 @@ const Performance: React.FC = () => {
       }
       
       const data = await response.json();
-      setPerformance(data);
+      setMetrics(data);
     } catch (err) {
-      setError(`Error fetching performance data: ${err instanceof Error ? err.message : 'Unknown error occurred'}`);
+      setError(`Error fetching metrics data: ${err instanceof Error ? err.message : 'Unknown error occurred'}`);
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const fetchTrainingStatus = useCallback(async () => {
+    if (!trainingJobId) return;
+
+    try {
+      const response = await fetch(`/training-status/${trainingJobId}`);
+      if (!response.ok) {
+        throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      // Simulate progress for demonstration
+      const simulatedProgress = data.status === 'running' 
+        ? Math.min((Date.now() - new Date(data.started_at).getTime()) / (60 * 1000) * 20, 95)
+        : data.status === 'completed' ? 100 : 0;
+        
+      setTrainingJob({
+        ...data,
+        progress: simulatedProgress
+      });
+      
+      // If training is complete or failed, stop polling
+      if (data.status === 'completed' || data.status === 'failed') {
+        setRetraining(false);
+        setTrainingJobId(null);
+        // Refresh metrics data if training completed successfully
+        if (data.status === 'completed') {
+          fetchMetricsData();
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching training status:', err);
+      setRetraining(false);
+    }
+  }, [trainingJobId, fetchMetricsData]);
+  
+  const handleRetrainModel = async () => {
+    setRetraining(true);
+    setTrainingJob({
+      status: 'starting',
+      started_at: new Date().toISOString(),
+      progress: 0
+    });
+    setError(null);
+    
+    try {
+      const response = await fetch('/retrain/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ force: true }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      setTrainingJobId(data.job_id);
+      setTrainingJob({
+        status: 'running',
+        started_at: new Date().toISOString(),
+        progress: 5 // Start with a small progress value
+      });
+    } catch (err) {
+      setError(`Error starting model retraining: ${err instanceof Error ? err.message : 'Unknown error occurred'}`);
+      setRetraining(false);
     }
   };
   
   // Fetch data on first load
   useEffect(() => {
-    fetchPerformanceData();
+    fetchMetricsData();
     
-    // Set up polling every 10 seconds
-    const intervalId = setInterval(fetchPerformanceData, 10000);
+    // Set up polling every 30 seconds
+    const intervalId = setInterval(fetchMetricsData, 30000);
     
     // Clean up on unmount
     return () => clearInterval(intervalId);
   }, []);
+  
+  // Poll for training status when a job is running
+  useEffect(() => {
+    if (retraining && trainingJobId) {
+      const intervalId = setInterval(fetchTrainingStatus, 2000);
+      
+      // Clean up interval on unmount or when retraining is done
+      return () => clearInterval(intervalId);
+    }
+  }, [retraining, trainingJobId, fetchTrainingStatus]);
   
   // Format date
   const formatDate = (dateString: string) => {
@@ -70,105 +165,113 @@ const Performance: React.FC = () => {
     return new Date(dateString).toLocaleString(undefined, options);
   };
   
+  // Format percentage
+  const formatPercentage = (value: number) => {
+    return `${(value * 100).toFixed(2)}%`;
+  };
+  
   return (
     <div className="performance-container">
       <h2>Model Performance Dashboard</h2>
       
-      <button onClick={fetchPerformanceData} className="refresh-button">
-        Refresh Data
-      </button>
+      <div className="action-buttons">
+        <button onClick={fetchMetricsData} className="refresh-button">
+          Refresh Metrics
+        </button>
+        
+        <button 
+          onClick={handleRetrainModel} 
+          className="retrain-button"
+          disabled={retraining}
+        >
+          {retraining ? 'Retraining in progress...' : 'Retrain Model'}
+        </button>
+      </div>
       
-      {loading && <div className="loading">Loading performance data...</div>}
+      {trainingJob && (
+        <div className={`training-status ${trainingJob.status}`}>
+          <h3>Training Status: <span className={trainingJob.status}>{trainingJob.status}</span></h3>
+          
+          <div className="progress-container">
+            <div 
+              className="progress-bar" 
+              style={{ width: `${trainingJob.progress || 0}%` }}
+            >
+              <span className="progress-text">{Math.round(trainingJob.progress || 0)}%</span>
+            </div>
+          </div>
+          
+          {trainingJob.started_at && <p>Started: {formatDate(trainingJob.started_at)}</p>}
+          {trainingJob.completed_at && <p>Completed: {formatDate(trainingJob.completed_at)}</p>}
+          {trainingJob.error && <p className="error">Error: {trainingJob.error}</p>}
+        </div>
+      )}
+      
+      {loading && <div className="loading">Loading metrics data...</div>}
       {error && <div className="error-message">{error}</div>}
       
-      {performance && (
+      {metrics && (
         <div className="dashboard">
           <div className="metrics-grid">
             <div className="metric-card">
-              <h3>Total Predictions</h3>
-              <div className="metric-value">{performance.total_predictions}</div>
+              <h3>Training Accuracy</h3>
+              <div className="metric-value">{formatPercentage(metrics.training.final_accuracy)}</div>
             </div>
             
             <div className="metric-card">
-              <h3>Average Confidence</h3>
-              <div className="metric-value">{(performance.avg_confidence * 100).toFixed(2)}%</div>
+              <h3>Validation Accuracy</h3>
+              <div className="metric-value">{formatPercentage(metrics.validation.final_accuracy)}</div>
             </div>
             
             <div className="metric-card">
-              <h3>Average Processing Time</h3>
-              <div className="metric-value">{performance.avg_processing_time.toFixed(3)}s</div>
+              <h3>Test Accuracy</h3>
+              <div className="metric-value">{formatPercentage(metrics.testing.accuracy)}</div>
             </div>
             
-            {performance.accuracy !== null && (
-              <div className="metric-card">
-                <h3>Model Accuracy</h3>
-                <div className="metric-value">{(performance.accuracy * 100).toFixed(2)}%</div>
+            <div className="metric-card">
+              <h3>Epochs Completed</h3>
+              <div className="metric-value">{metrics.training.epochs_completed} / {metrics.parameters.max_epochs}</div>
+            </div>
+          </div>
+          
+          <div className="metrics-grid">
+            <div className="metric-card">
+              <h3>Training Loss</h3>
+              <div className="metric-value">{metrics.training.final_loss.toFixed(4)}</div>
+            </div>
+            
+            <div className="metric-card">
+              <h3>Validation Loss</h3>
+              <div className="metric-value">{metrics.validation.final_loss.toFixed(4)}</div>
+            </div>
+            
+            <div className="metric-card">
+              <h3>Test Loss</h3>
+              <div className="metric-value">{metrics.testing.loss.toFixed(4)}</div>
+            </div>
+            
+            <div className="metric-card">
+              <h3>Batch Size</h3>
+              <div className="metric-value">{metrics.parameters.batch_size}</div>
+            </div>
+          </div>
+          
+          <div className="parameters-section">
+            <h3>Model Parameters</h3>
+            <div className="parameters-grid">
+              <div className="parameter-item">
+                <span className="parameter-label">Image Size:</span>
+                <span className="parameter-value">{metrics.parameters.img_width} x {metrics.parameters.img_height}</span>
               </div>
-            )}
-          </div>
-          
-          <div className="distribution-section">
-            <h3>Class Distribution</h3>
-            <div className="distribution-bars">
-              {Object.entries(performance.class_distribution).map(([className, count]) => {
-                const percentage = (count / performance.total_predictions) * 100;
-                return (
-                  <div key={className} className="distribution-item">
-                    <div className="class-label">{className}</div>
-                    <div className="bar-container">
-                      <div 
-                        className={`bar ${className === 'cat' ? 'cat-bar' : 'dog-bar'}`} 
-                        style={{ width: `${percentage}%` }}
-                      ></div>
-                      <span className="percentage">{percentage.toFixed(1)}%</span>
-                    </div>
-                    <div className="count">{count} images</div>
-                  </div>
-                );
-              })}
+              <div className="parameter-item">
+                <span className="parameter-label">Learning Rate:</span>
+                <span className="parameter-value">{metrics.parameters.learning_rate}</span>
+              </div>
+              <div className="parameter-item">
+                <span className="parameter-label">Max Epochs:</span>
+                <span className="parameter-value">{metrics.parameters.max_epochs}</span>
+              </div>
             </div>
-          </div>
-          
-          <div className="recent-predictions">
-            <h3>Recent Predictions</h3>
-            <table className="predictions-table">
-              <thead>
-                <tr>
-                  <th>Time</th>
-                  <th>Filename</th>
-                  <th>Prediction</th>
-                  <th>Confidence</th>
-                  <th>Ground Truth</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {performance.recent_predictions.map((pred) => {
-                  const isCorrect = pred.ground_truth === null 
-                    ? null 
-                    : pred.prediction === pred.ground_truth;
-                  
-                  return (
-                    <tr key={pred.id}>
-                      <td>{formatDate(pred.timestamp)}</td>
-                      <td className="filename">{pred.filename}</td>
-                      <td className={pred.prediction}>{pred.prediction}</td>
-                      <td>{(pred.confidence * 100).toFixed(2)}%</td>
-                      <td>{pred.ground_truth || 'Unknown'}</td>
-                      <td>
-                        {isCorrect === null ? (
-                          <span className="unknown">Unknown</span>
-                        ) : isCorrect ? (
-                          <span className="correct">Correct</span>
-                        ) : (
-                          <span className="incorrect">Incorrect</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
           </div>
         </div>
       )}
