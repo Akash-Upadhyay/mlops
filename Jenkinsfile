@@ -43,8 +43,19 @@ pipeline {
                         dvc remote modify --local gdrive_remote gdrive_service_account_json_file_path "$GDRIVE_CRED"
                         echo "GDRIVE_CRED: $GDRIVE_CRED"
                         dvc pull
+                        echo "DVC Pulled"
                     '''
                 }
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                echo 'Installing dependencies from requirements.txt...'
+                sh '''
+                    . venv/bin/activate
+                    pip install -r requirements.txt
+                '''
             }
         }
 
