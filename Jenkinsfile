@@ -9,7 +9,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 echo 'Cloning the Git repository...'
-                git url: 'git@github.com:Akash-Upadhyay/mlops.git', branch: 'main'
+                git url: 'https://github.com/Akash-Upadhyay/mlops.git', branch: 'main'
             }
         }
 
