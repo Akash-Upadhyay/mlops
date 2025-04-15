@@ -21,6 +21,7 @@ pipeline {
                     . venv/bin/activate
                     pip install --upgrade pip
                     pip install dvc
+                    pip install dvc[gdrive]
                 '''
             }
         }
