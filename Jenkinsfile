@@ -120,8 +120,9 @@ pipeline {
                         git status
                         
                         # Stage and commit changes
-                        git add .
-                        git commit -m "Update from Jenkins pipeline build 40"
+                        git add -A
+                        git diff-index --quiet HEAD || git commit -m "Automated commit from Jenkins"
+
                         
                         # Push changes using SSH
                         ssh-agent sh -c 'ssh-add $SSH_KEY; git push origin main'
