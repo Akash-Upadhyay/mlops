@@ -65,7 +65,7 @@ pipeline {
         stage('DVC Pull') {
             steps {
                 echo 'Pulling data and models from DVC remote...'
-                echo "GDRIVE_CRED: $GDRIVE_CRED"
+                // echo "GDRIVE_CRED: $GDRIVE_CRED"
                 withCredentials([file(credentialsId: 'dvc-gdrive-creds', variable: 'GDRIVE_CRED')]) {
                     sh '''
                         dvc remote modify gdrive_remote gdrive_use_service_account true
