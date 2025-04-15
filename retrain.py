@@ -126,7 +126,7 @@ def main():
     duration = time.time() - start_time
     
     print(f"\n{'=' * 50}")
-    print(f"Training {'completed successfully' if result['status'] == 'completed' else 'failed'}")
+    print(f" {'completed successfully' if result['status'] == 'completed' else 'failed'}")
     print(f"Total duration: {duration:.2f} seconds")
     print(f"Status: {result['status']}")
     if result['status'] == 'failed' and 'error' in result:
