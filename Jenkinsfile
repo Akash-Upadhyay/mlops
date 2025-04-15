@@ -121,7 +121,7 @@ pipeline {
                         
                         # Stage and commit changes
                         git add jenkins_update.txt
-                        git commit -m "Update from Jenkins pipeline"
+                        git commit -m "Update from Jenkins pipeline build 40"
                         
                         # Push changes using SSH
                         ssh-agent sh -c 'ssh-add $SSH_KEY; git push origin main'
