@@ -18,7 +18,7 @@ pipeline {
                 echo 'Setting up virtual environment...'
                 sh '''
                     python3 -m venv venv
-                    source venv/bin/activate
+                    . venv/bin/activate
                     pip install --upgrade pip
                     pip install dvc
                 '''
@@ -37,7 +37,7 @@ pipeline {
                 echo 'Pulling data and models from DVC remote...'
                 withCredentials([file(credentialsId: 'dvc-gdrive-creds', variable: 'GDRIVE_CRED')]) {
                     sh '''
-                        source venv/bin/activate
+                        . venv/bin/activate
                         dvc remote modify gdrive_remote gdrive_use_service_account true
                         dvc remote modify --local gdrive_remote gdrive_service_account_json_file_path "$GDRIVE_CRED"
                         echo "GDRIVE_CRED: $GDRIVE_CRED"
@@ -51,7 +51,7 @@ pipeline {
             steps {
                 echo 'Reproducing the DVC pipeline...'
                 sh '''
-                    source venv/bin/activate
+                    . venv/bin/activate
                     dvc repro
                 '''
             }
