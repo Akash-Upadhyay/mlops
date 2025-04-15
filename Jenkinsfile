@@ -6,12 +6,31 @@ pipeline {
     }
 
     stages {
-        stage('Checkout') {
+        stage('Test SSH Connection') {
+            steps {
+                script {
+                    node {
+                        withCredentials([sshUserPrivateKey(credentialsId: 'my-repo-ssh-key', keyFileVariable: 'SSH_KEY')]) {
+                            sh '''
+                                ssh-agent sh -c 'ssh-add $SSH_KEY; ssh -T git@github.com || true'
+                            '''
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Clone Repository') {
             steps {
                 echo 'Cloning the Git repository...'
-                sshagent(['my-repo-ssh-key']) {
-                    git url: 'git@github.com:Akash-Upadhyay/mlops.git', branch: 'main'
-                }
+                checkout([$class: 'GitSCM', 
+                    branches: [[name: '*/main']], 
+                    userRemoteConfigs: [[
+                        url: 'git@github.com:Akash-Upadhyay/mlops.git',
+                        credentialsId: 'my-repo-ssh-key'
+                    ]],
+                    extensions: [[$class: 'LocalBranch', localBranch: 'main']]
+                ])
             }
         }
 
@@ -87,14 +106,25 @@ pipeline {
         stage('Git Push') {
             steps {
                 echo 'Pushing changes to Git repository...'
-                sshagent(['my-repo-ssh-key']) {
+                withCredentials([sshUserPrivateKey(credentialsId: 'my-repo-ssh-key', keyFileVariable: 'SSH_KEY')]) {
                     sh '''
-                        . venv/bin/activate
+                        # Setup Git user information
                         git config user.name "Akash Upadhyay"
                         git config user.email "akashupadhyay629@gmail.com"
-                        git add .
-                        git commit -m "Update DVC files and code after training"
-                        git push origin main
+                        
+                        # Make some changes
+                        echo "Update from Jenkins pipeline" > jenkins_update.txt
+                        
+                        # Verify branch and status
+                        git branch
+                        git status
+                        
+                        # Stage and commit changes
+                        git add jenkins_update.txt
+                        git commit -m "Update from Jenkins pipeline"
+                        
+                        # Push changes using SSH
+                        ssh-agent sh -c 'ssh-add $SSH_KEY; git push origin main'
                     '''
                 }
             }
