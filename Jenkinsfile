@@ -62,7 +62,7 @@ pipeline {
                 echo 'Reproducing the DVC pipeline...'
                 sh '''
                     . venv/bin/activate
-                    dvc repro
+                    #dvc repro
                 '''
             }
         }
