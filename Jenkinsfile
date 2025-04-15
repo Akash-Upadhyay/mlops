@@ -113,14 +113,14 @@ pipeline {
                         git config user.email "akashupadhyay629@gmail.com"
                         
                         # Make some changes
-                        echo "Update from Jenkins pipeline" > jenkins_update.txt
+                        echo "Update from Jenkins pipeline build 40" > jenkins_update.txt
                         
                         # Verify branch and status
                         git branch
                         git status
                         
                         # Stage and commit changes
-                        git add jenkins_update.txt
+                        git add .
                         git commit -m "Update from Jenkins pipeline build 40"
                         
                         # Push changes using SSH
