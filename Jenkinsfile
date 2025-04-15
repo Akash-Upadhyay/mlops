@@ -88,8 +88,8 @@ pipeline {
                 sshagent(['my-repo-ssh-key']) {
                     sh '''
                         . venv/bin/activate
-                        git config user.name "Your Name"
-                        git config user.email "your.email@example.com"
+                        git config user.name "Akash Upadhyay"
+                        git config user.email "akashupadhyay629@gmail.com"
                         git add .
                         git commit -m "Update DVC files and code after training"
                         git push origin main
