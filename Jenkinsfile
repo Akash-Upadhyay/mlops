@@ -9,7 +9,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 echo 'Cloning the Git repository...'
-                git url: 'https://github.com/Akash-Upadhyay/mlops.git', branch: 'main'
+                git url: 'git@github.com:Akash-Upadhyay/mlops.git', branch: 'main'
             }
         }
 
@@ -54,7 +54,7 @@ pipeline {
                 echo 'Installing dependencies from requirements.txt...'
                 sh '''
                     . venv/bin/activate
-                    pip install -r requirements.txt
+                    # pip install -r requirements.txt
                 '''
             }
         }
@@ -64,8 +64,36 @@ pipeline {
                 echo 'Reproducing the DVC pipeline...'
                 sh '''
                     . venv/bin/activate
-                    dvc repro
+                      #dvc repro
                 '''
+            }
+        }
+
+        stage('DVC Push') {
+            steps {
+                echo 'Pushing data and models to DVC remote...'
+                withCredentials([file(credentialsId: 'dvc-gdrive-creds', variable: 'GDRIVE_CRED')]) {
+                    sh '''
+                        . venv/bin/activate
+                        dvc push
+                    '''
+                }
+            }
+        }
+
+        stage('Git Push') {
+            steps {
+                echo 'Pushing changes to Git repository...'
+                sshagent(['my-repo-ssh-key']) {
+                    sh '''
+                        . venv/bin/activate
+                        git config user.name "Akash Upadhyay"
+                        git config user.email "akashupadhyay629@gmail.com"
+                        git add .
+                        git commit -m "Update DVC files and code after training"
+                        git push origin main
+                    '''
+                }
             }
         }
     }
