@@ -69,6 +69,7 @@ pipeline {
                     sh '''
                         dvc remote modify gdrive_remote gdrive_use_service_account true
                         dvc remote modify --local gdrive_remote gdrive_service_account_json_file_path "$GDRIVE_CRED"
+                        echo "GDRIVE_CRED: $GDRIVE_CRED"
                         dvc pull
                     '''
                 }
