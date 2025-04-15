@@ -85,7 +85,7 @@ pipeline {
         stage('Git Push') {
             steps {
                 echo 'Pushing changes to Git repository...'
-                sshagent(['jenkins-ssh-key']) {
+                sshagent(['my-repo-ssh-key']) {
                     sh '''
                         . venv/bin/activate
                         git config user.name "Your Name"
