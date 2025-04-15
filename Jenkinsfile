@@ -6,10 +6,14 @@ pipeline {
     }
 
     stages {
-        stage('Checkout') {
+        stage('Git PUll') {
             steps {
-                echo 'Cloning the Git repository...'
-                git url: 'https://github.com/Akash-Upadhyay/mlops.git', branch: 'main'
+                echo 'Pulling changes from Git repository...'
+                sshagent(['my-repo-ssh-key']) {
+                    sh '''
+                        git pull git@github.com:Akash-Upadhyay/mlops.git
+                    '''
+                }
             }
         }
 
