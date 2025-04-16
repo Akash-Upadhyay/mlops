@@ -65,7 +65,7 @@ pipeline {
                         dvc remote modify gdrive_remote gdrive_use_service_account true
                         dvc remote modify --local gdrive_remote gdrive_service_account_json_file_path "$GDRIVE_CRED"
                         echo "GDRIVE_CRED: $GDRIVE_CRED"
-                        #dvc pull
+                        dvc pull
                     '''
                 }
             }
@@ -101,6 +101,32 @@ pipeline {
                         dvc remote modify --local gdrive_remote gdrive_service_account_json_file_path "$GDRIVE_CRED"
                         echo "GDRIVE_CRED: $GDRIVE_CRED"
                         dvc push
+                    '''
+                }
+            }
+        }
+        
+        stage('Git Push') {
+            steps {
+                echo 'Pushing changes to Git repository...'
+                withCredentials([sshUserPrivateKey(credentialsId: 'my-repo-ssh-key', keyFileVariable: 'SSH_KEY')]) {
+                    sh '''
+                        # Setup Git user information
+                        git config user.name "Akash Upadhyay"
+                        git config user.email "akashupadhyay629@gmail.com"
+                        
+                        # Stage any changes including DVC meta files
+                        git add .
+                        
+                        # Check if there are changes to commit
+                        if git diff-index --quiet HEAD; then
+                            echo "No changes to commit, skipping Git push"
+                        else
+                            # Commit and push changes
+                            git commit -m "DVC: Updated data and models [skip ci]"
+                            ssh-agent sh -c 'ssh-add $SSH_KEY; git push origin main'
+                            echo "Changes committed and pushed successfully"
+                        fi
                     '''
                 }
             }
