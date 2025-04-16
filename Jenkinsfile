@@ -116,11 +116,8 @@ pipeline {
 
         stage('Push Backend to Docker Hub') {
             steps {
-                withCredentials([string(credentialsId: 'docker-hub-token', variable: 'DOCKER_HUB_TOKEN')]) {
-                    sh '''
-                        echo $DOCKER_HUB_TOKEN | docker login -u mt2024013 --password-stdin
-                        docker push ${DOCKER_IMAGE}:latest
-                    '''
+                withDockerRegistry([credentialsId: 'docker-hub-credentials', url: '']) {
+                    sh "docker push docker.io/${DOCKER_IMAGE}:latest"
                 }
             }
         }
@@ -138,11 +135,8 @@ pipeline {
 
         stage('Push Frontend to Docker Hub') {
             steps {
-                withCredentials([string(credentialsId: 'docker-hub-token', variable: 'DOCKER_HUB_TOKEN')]) {
-                    sh '''
-                        echo $DOCKER_HUB_TOKEN | docker login -u mt2024013 --password-stdin
-                        docker push ${FRONTEND_DOCKER_IMAGE}:latest
-                    '''
+                withDockerRegistry([credentialsId: 'docker-hub-credentials', url: '']) {
+                    sh "docker push docker.io/${FRONTEND_DOCKER_IMAGE}:latest"
                 }
             }
         }
