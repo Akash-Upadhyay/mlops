@@ -148,5 +148,11 @@ pipeline {
                 }
             }
         }
+        stage('Deploy Using Ansible') {
+            steps {
+                withCredentials([sshUserPrivateKey(credentialsId: 'ansible-ssh-key', keyFileVariable: 'SSH_KEY')]) {
+                    sh "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory.ini ansible-playbook.yml --private-key=$SSH_KEY"
+                }
+        }
     }
 }

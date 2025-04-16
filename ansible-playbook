@@ -1,0 +1,21 @@
+- name: Deploy Calculator Container
+  hosts: localhost
+  become: true
+  become_method: sudo
+  tasks:
+    - name: Pull Docker Image
+      command: docker pull mt2024013/catvsdog
+
+    - name: Stop existing container
+      command: docker rm -f catvsdog_container
+      ignore_errors: yes
+
+    - name: Run the Calculator Container in Interactive Mode
+      command: docker run -dit --name catvsdog_container mt2024013/catvsdog
+
+    - name: Verify Container is Running
+      command: docker ps | grep catvsdog_container
+      register: container_status
+
+    - name: Print Container Status
+      debug: var=container_status
