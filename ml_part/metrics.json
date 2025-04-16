@@ -1,16 +1,16 @@
 {
     "training": {
         "epochs_completed": 10,
-        "final_accuracy": 0.7938125133514404,
-        "final_loss": 0.44136282801628113
+        "final_accuracy": 0.792187511920929,
+        "final_loss": 0.4459313154220581
     },
     "validation": {
-        "final_accuracy": 0.8086543083190918,
-        "final_loss": 0.4223869740962982
+        "final_accuracy": 0.8041520714759827,
+        "final_loss": 0.43716880679130554
     },
     "testing": {
-        "accuracy": 0.8375999927520752,
-        "loss": 0.37535393238067627
+        "accuracy": 0.8330000042915344,
+        "loss": 0.377597451210022
     },
     "parameters": {
         "img_height": 150,
