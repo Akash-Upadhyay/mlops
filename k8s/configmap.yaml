@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: catvsdog-config
+data:
+  LOG_LEVEL: "info"
+  MODEL_PATH: "/app/ml_part/checkpoints/model.h5" 

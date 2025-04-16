@@ -4,6 +4,7 @@ pipeline {
     environment {
         PATH = "/var/lib/jenkins/.local/bin:$PATH"
         DOCKER_IMAGE = "mt2024013/catvsdog"
+        FRONTEND_DOCKER_IMAGE = "mt2024013/catvsdog-frontend"
 
     }
 
@@ -105,55 +106,78 @@ pipeline {
             }
         }
 
-        stage('Git Push') {
+        stage('Build Backend Docker Image') {
             steps {
-                echo 'Pushing changes to Git repository...'
-                withCredentials([sshUserPrivateKey(credentialsId: 'my-repo-ssh-key', keyFileVariable: 'SSH_KEY')]) {
-                    sh '''
-                        # Setup Git user information
-                        git config user.name "Akash Upadhyay"
-                        git config user.email "akashupadhyay629@gmail.com"
-                        
-                        # Make some changes
-                        echo "Update from Jenkins pipeline build 40" > jenkins_update.txt
-                        
-                        # Verify branch and status
-                        git branch
-                        git status
-                        
-                        # Stage and commit changes
-                        git add -A
-                        git diff-index --quiet HEAD || git commit -m "Automated commit from Jenkins"
+                script {
+                    sh "docker build -t ${DOCKER_IMAGE}:latest ."
+                }
+            }
+        }
 
-                        
-                        # Push changes using SSH
-                        ssh-agent sh -c 'ssh-add $SSH_KEY; git push origin main'
+        stage('Push Backend to Docker Hub') {
+            steps {
+                withCredentials([string(credentialsId: 'docker-hub-token', variable: 'DOCKER_HUB_TOKEN')]) {
+                    sh '''
+                        echo $DOCKER_HUB_TOKEN | docker login -u mt2024013 --password-stdin
+                        docker push ${DOCKER_IMAGE}:latest
+                    '''
+                }
+            }
+        }
+        
+        stage('Build Frontend Docker Image') {
+            steps {
+                script {
+                    sh '''
+                        cd frontend
+                        docker build -t ${FRONTEND_DOCKER_IMAGE}:latest .
                     '''
                 }
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Push Frontend to Docker Hub') {
             steps {
-                script {
-                    sh "docker build -t ${DOCKER_IMAGE} ."
+                withCredentials([string(credentialsId: 'docker-hub-token', variable: 'DOCKER_HUB_TOKEN')]) {
+                    sh '''
+                        echo $DOCKER_HUB_TOKEN | docker login -u mt2024013 --password-stdin
+                        docker push ${FRONTEND_DOCKER_IMAGE}:latest
+                    '''
                 }
             }
         }
 
-        stage('Push to Docker Hub') {
-            steps {
-                withDockerRegistry([credentialsId: 'docker-hub-credentials', url: '']) {
-                    sh "docker push docker.io/${DOCKER_IMAGE}"
-                }
-            }
-        }
         stage('Deploy Using Ansible') {
             steps {
                 sh '''
                     ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory.ini ansible-playbook.yml
                 '''
             }
+        }
+        
+        stage('Deploy to Kubernetes') {
+            steps {
+                sh '''
+                    # Install Ansible Kubernetes collection if not already installed
+                    ansible-galaxy collection install kubernetes.core
+
+                    # Install Python kubernetes module if needed
+                    pip install kubernetes>=12.0.0
+                    
+                    echo "==== Starting deployment of backend and frontend to Kubernetes ===="
+                    
+                    # Run the Kubernetes deployment playbook
+                    ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory.ini k8s-ansible-playbook.yml
+                    
+                    echo "==== Kubernetes deployment completed ===="
+                '''
+            }
+        }
+    }
+    
+    post {
+        always {
+            cleanWs()
         }
     }
 }

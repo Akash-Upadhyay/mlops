@@ -1,0 +1,160 @@
+---
+- name: Deploy Cat vs Dog Classifier to Kubernetes
+  hosts: local
+  become: false
+  gather_facts: true
+  
+  tasks:
+    - name: Check kubectl is installed
+      command: kubectl version --client
+      register: kubectl_version
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Fail if kubectl is not installed
+      fail:
+        msg: "kubectl is not installed or not in PATH"
+      when: kubectl_version.rc != 0
+      
+    - name: Install Python kubernetes module
+      pip:
+        name: kubernetes>=12.0.0
+        state: present
+      become: true
+
+    - name: Create k8s directory if it doesn't exist
+      file:
+        path: "{{ playbook_dir }}/k8s"
+        state: directory
+        mode: '0755'
+
+    - name: Ensure the namespace exists
+      kubernetes.core.k8s:
+        name: catvsdog
+        api_version: v1
+        kind: Namespace
+        state: present
+
+    # Backend Deployment
+    - name: Deploy Backend ConfigMap
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/k8s/configmap.yaml"
+        namespace: catvsdog
+
+    - name: Deploy Backend Deployment
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/k8s/deployment.yaml"
+        namespace: catvsdog
+
+    - name: Deploy Backend Service
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/k8s/service.yaml"
+        namespace: catvsdog
+    
+    - name: Deploy Backend Ingress
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/k8s/ingress.yaml"
+        namespace: catvsdog
+        
+    # Frontend Deployment
+    - name: Deploy Frontend Resources
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/k8s/frontend-deployment.yaml"
+        namespace: catvsdog
+        
+    # Wait for deployments to be ready
+    - name: Wait for backend deployment to be ready
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: Deployment
+        name: catvsdog-deployment
+        namespace: catvsdog
+      register: backend_status
+      until: backend_status.resources[0].status.readyReplicas is defined and backend_status.resources[0].status.readyReplicas == backend_status.resources[0].spec.replicas
+      retries: 12
+      delay: 10
+      
+    - name: Wait for frontend deployment to be ready
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: Deployment
+        name: frontend-deployment
+        namespace: catvsdog
+      register: frontend_status
+      until: frontend_status.resources[0].status.readyReplicas is defined and frontend_status.resources[0].status.readyReplicas == frontend_status.resources[0].spec.replicas
+      retries: 12
+      delay: 10
+
+    # Get service details
+    - name: Get Backend Service details
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Service
+        name: catvsdog-service
+        namespace: catvsdog
+      register: backend_service
+
+    - name: Get Frontend Service details
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Service
+        name: frontend-service
+        namespace: catvsdog
+      register: frontend_service
+
+    # Display service URLs
+    - name: Display backend service URL (LoadBalancer)
+      debug:
+        msg: "The backend API is available at: http://{{ backend_service.resources[0].status.loadBalancer.ingress[0].ip }}:{{ backend_service.resources[0].spec.ports[0].port }}"
+      when: backend_service.resources[0].status.loadBalancer.ingress is defined
+      
+    - name: Display backend service URL (NodePort)
+      debug:
+        msg: "The backend API is available at NodePort: http://$(minikube ip):{{ backend_service.resources[0].spec.ports[0].nodePort }}"
+      when: backend_service.resources[0].spec.type == 'LoadBalancer' and backend_service.resources[0].status.loadBalancer.ingress is not defined
+      
+    - name: Display frontend service URL
+      debug:
+        msg: "The frontend application is available at: http://{{ frontend_service.resources[0].status.loadBalancer.ingress[0].ip }}:{{ frontend_service.resources[0].spec.ports[0].port }}"
+      when: frontend_service.resources[0].status.loadBalancer.ingress is defined
+
+    # Get Ingress details
+    - name: Get Backend Ingress details
+      kubernetes.core.k8s_info:
+        api_version: networking.k8s.io/v1
+        kind: Ingress
+        name: catvsdog-ingress
+        namespace: catvsdog
+      register: backend_ingress
+      ignore_errors: yes
+
+    - name: Get Frontend Ingress details
+      kubernetes.core.k8s_info:
+        api_version: networking.k8s.io/v1
+        kind: Ingress
+        name: frontend-ingress
+        namespace: catvsdog
+      register: frontend_ingress
+      ignore_errors: yes
+
+    # Display ingress URLs
+    - name: Display backend ingress URL
+      debug:
+        msg: "The backend API is available via Ingress at: http://{{ backend_ingress.resources[0].spec.rules[0].host }}/api"
+      when: backend_ingress.resources is defined and backend_ingress.resources | length > 0
+      
+    - name: Display frontend ingress URL
+      debug:
+        msg: "The frontend application is available via Ingress at: http://{{ frontend_ingress.resources[0].spec.rules[0].host }}"
+      when: frontend_ingress.resources is defined and frontend_ingress.resources | length > 0
+      
+    # Display combined application URL when both use same host
+    - name: Display combined application URL
+      debug:
+        msg: "The full application is available at: http://{{ frontend_ingress.resources[0].spec.rules[0].host }}"
+      when: frontend_ingress.resources is defined and frontend_ingress.resources | length > 0 

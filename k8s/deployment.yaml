@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catvsdog-deployment
+  labels:
+    app: catvsdog
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: catvsdog
+  template:
+    metadata:
+      labels:
+        app: catvsdog
+    spec:
+      containers:
+      - name: catvsdog
+        image: mt2024013/catvsdog:latest
+        ports:
+        - containerPort: 8000
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1"
+        readinessProbe:
+          httpGet:
+            path: /metrics/
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /metrics/
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 30 
