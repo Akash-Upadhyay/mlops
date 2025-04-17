@@ -1,71 +1,6 @@
-# Cat vs Dog Frontend
+# Frontend
 
-This is the frontend for the Cat vs Dog classifier application.
-
-## Docker Setup
-
-### Building the Docker Image
-
-To build the Docker image for the frontend:
-
-```bash
-cd frontend
-docker build -t mt2024013/catvsdog-frontend:latest .
-```
-
-### Running the Docker Container Locally
-
-To run the Docker container locally:
-
-```bash
-docker run -p 3000:3000 -e BACKEND_SERVICE=http://localhost:8000 mt2024013/catvsdog-frontend:latest
-```
-
-### Push to Docker Hub
-
-To push the Docker image to Docker Hub:
-
-```bash
-docker login
-docker push mt2024013/catvsdog-frontend:latest
-```
-
-## Kubernetes Deployment
-
-The frontend is deployed to Kubernetes using the manifests in the `k8s` directory.
-
-```bash
-kubectl apply -f k8s/frontend-deployment.yaml
-```
-
-## Local Development
-
-To run the frontend locally for development:
-
-1. Install dependencies:
-```bash
-npm install
-```
-
-2. Start the development server:
-```bash
-npm start
-```
-
-3. To build the app:
-```bash
-npm run build
-```
-
-4. To run the API proxy server:
-```bash
-npm run serve
-```
-
-## Environment Variables
-
-- `PORT`: The port on which the server runs (default: 3000)
-- `BACKEND_SERVICE`: The URL of the backend service (default: http://catvsdog-service.catvsdog.svc.cluster.local:8000)
+This repository contains the frontend application of the MLOps project for cat vs dog classification.
 
 ## Features
 
@@ -73,6 +8,20 @@ npm run serve
 - Real-time image preview
 - Display classification results with confidence scores
 - Responsive design
+
+## Setup and Running
+
+1. Install the required dependencies:
+   ```bash
+   npm install
+   ```
+
+2. Start the development server:
+   ```bash
+   npm start
+   ```
+
+3. The application will be available at http://localhost:3000
 
 ## Usage
 

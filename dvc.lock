@@ -5,8 +5,8 @@ stages:
     deps:
     - path: ml_part/config.py
       hash: md5
-      md5: 9ff5aefd6a56bf22799239f49e4c6ca6
-      size: 535
+      md5: ee382d7b92f6916cd080cb009afad309
+      size: 534
     - path: ml_part/data_preprocessing.py
       hash: md5
       md5: 62f64f4431169c1fc8fcb5ddff4c4dc3
@@ -22,29 +22,37 @@ stages:
     deps:
     - path: ml_part/config.py
       hash: md5
-      md5: 9ff5aefd6a56bf22799239f49e4c6ca6
-      size: 535
+      md5: ee382d7b92f6916cd080cb009afad309
+      size: 534
+    - path: ml_part/config/mlflow_config.yaml
+      hash: md5
+      md5: ea3dc705e404a31de3e893b6523f4576
+      size: 204
     - path: ml_part/data
       hash: md5
       md5: a786fe9cad78d551144970e24fc7ae2d.dir
       size: 1715082130
       nfiles: 50002
+    - path: ml_part/mlflow_utils.py
+      hash: md5
+      md5: b0f591b8bfcd42608958e276e64755ae
+      size: 6879
     - path: ml_part/model.py
       hash: md5
-      md5: c6c84889a4136f3541c0a740cf70fbdd
-      size: 8975
+      md5: 9bb2aa3c798738561e58c000cbc37e6e
+      size: 11698
     outs:
     - path: ml_part/checkpoints
       hash: md5
-      md5: 6e4ad15bb6e5cc44bd2124953b835f03.dir
+      md5: 9020487cadffb7183f29ef5a31366e37.dir
       size: 228458687
       nfiles: 3
     - path: ml_part/metrics.json
       hash: md5
-      md5: 4dcc8f329349176e9ae60d72c5892977
-      size: 521
+      md5: 5cc9eedaf157c7da7bcb12265eac7dcb
+      size: 520
     - path: ml_part/plots
       hash: md5
-      md5: 846812dbfe0863ca0e3fcf8246c9aae6.dir
-      size: 132808
+      md5: 5e15aade86098b5873e57a0e85f26a32.dir
+      size: 64904
       nfiles: 3

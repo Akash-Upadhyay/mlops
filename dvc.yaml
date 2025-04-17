@@ -23,3 +23,8 @@ stages:
     plots:
       - ml_part/plots:
           cache: false
+  push_model:
+   cmd: python ml_part/push_to_mlflow.py
+   deps:
+    - ml_part/checkpoints/best_model.h5
+    - ml_part/push_to_mlflow.py
