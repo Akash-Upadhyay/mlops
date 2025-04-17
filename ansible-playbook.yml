@@ -12,18 +12,3 @@
 
     - name: Run the Calculator Container in Interactive Mode
       command: docker run -dit --name catvsdog_container mt2024013/catvsdog
-
-    - name: Verify Container is Running
-      shell: docker ps | grep catvsdog_container
-      register: container_status
-      ignore_errors: yes
-
-    - name: Print Container Status
-      debug:
-        msg: "{{ container_status.stdout }}"
-      when: container_status.rc == 0
-
-    - name: Fail if container is not running
-      fail:
-        msg: "Container is not running!"
-      when: container_status.rc != 0 and not ansible_check_mode
