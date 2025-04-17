@@ -4,11 +4,11 @@
   become_method: sudo
   tasks:
     - name: Pull Docker Image
-      command: docker pull mt2024013/catdog
+      command: docker pull mt2024013/catvsdog
 
     - name: Stop existing container
-      command: docker rm -f catdog_container
+      command: docker rm -f catvsdog_container
       ignore_errors: yes
 
     - name: Run the Calculator Container in Interactive Mode
-      command: docker run -dit --name catdog_container mt2024013/catdog
+      command: docker run -dit --name catvsdog_container mt2024013/catvsdog

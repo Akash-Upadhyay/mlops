@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         PATH = "/var/lib/jenkins/.local/bin:$PATH"
-        DOCKER_IMAGE = "mt2024013/catdog"
+        DOCKER_IMAGE = "mt2024013/catvsdog"
 
     }
 
