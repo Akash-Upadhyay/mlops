@@ -36,17 +36,17 @@ stages:
     outs:
     - path: ml_part/checkpoints
       hash: md5
-      md5: 0e069d1a105e1c446c9218b6e95c04c2.dir
+      md5: 597d2e8263467c598675163da8167a6a.dir
       size: 228458687
       nfiles: 3
     - path: ml_part/metrics.json
       hash: md5
-      md5: 45900af2fdef069921371b461c73e16f
+      md5: d6ef7587558baa53440652d86923a0e5
       size: 520
     - path: ml_part/plots
       hash: md5
-      md5: 8669ddcbd61a1f10dce50ba6fcdca274.dir
-      size: 71980
+      md5: c155f7d85a46b7328b368440c390fb53.dir
+      size: 67957
       nfiles: 3
   push:
     cmd: dvc push
