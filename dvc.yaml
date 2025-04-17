@@ -24,9 +24,9 @@ stages:
       - ml_part/plots:
           cache: false
 
-  push:
-    cmd: dvc push
-    deps:
-      - ml_part/checkpoints
-      - ml_part/data
-    always_changed: true
+  # push:
+  #   cmd: dvc push
+  #   deps:
+  #     - ml_part/checkpoints
+  #     - ml_part/data
+  #   always_changed: true
