@@ -13,9 +13,9 @@ pipeline {
                 script {
                     node {
                         withCredentials([sshUserPrivateKey(credentialsId: 'my-repo-ssh-key', keyFileVariable: 'SSH_KEY')]) {
-                            sh '''
-                                ssh-agent sh -c 'ssh-add $SSH_KEY; ssh -T git@github.com || true'
-                            '''
+                            // sh '''
+                            //     ssh-agent sh -c 'ssh-add $SSH_KEY; ssh -T git@github.com || true'
+                            // '''
                         }
                     }
                 }
