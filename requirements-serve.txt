@@ -2,5 +2,5 @@ fastapi==0.115.0
 uvicorn==0.30.1
 python-multipart==0.0.10
 pillow==11.2.1
-tensorflow-cpu==2.19.0# Much smaller than full tensorflow
+tensorflow-cpu==2.19.0
 pydantic>=2.0.0
