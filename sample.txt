@@ -1,7 +1,5 @@
-hello
-\\
-
-Set Git to use the rebase strategy when pulling (git config pull.rebase true)
-Pulled the remote changes while rebasing your local commit on top (git pull origin main)
-Verified the repository status (git status) and commit history (git log)
-Successfully pushed your changes to the remote repository (git push origin main)
+git add .
+git commit -m "modified retrain script"
+git config pull.rebase true
+git pull origin main
+git push
