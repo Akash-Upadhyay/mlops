@@ -135,18 +135,18 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                // script {
-                //     sh "docker build -t ${DOCKER_IMAGE} ."
-                // }
+                script {
+                    sh "docker build -t ${DOCKER_IMAGE} ."
+                }
                 echo "Building Docker Image..."
             }
         }
 
         stage('Push to Docker Hub') {
             steps {
-                // withDockerRegistry([credentialsId: 'docker-hub-credentials', url: '']) {
-                //     #sh "docker push docker.io/${DOCKER_IMAGE}"
-                // }
+                withDockerRegistry([credentialsId: 'docker-hub-credentials', url: '']) {
+                    #sh "docker push docker.io/${DOCKER_IMAGE}"
+                }
                 echo "Pushing to Docker Hub..."
             }
         }
