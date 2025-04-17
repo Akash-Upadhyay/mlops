@@ -1,4 +1,13 @@
+# Build stage
+FROM python:3.12-slim AS builder
+WORKDIR /app
+COPY requirements-serve.txt .
+RUN pip install --no-cache-dir --target=/app/deps -r requirements-serve.txt
+
+# Final stage
 FROM python:3.12-slim
+WORKDIR /app
+COPY --from=builder /app/deps /usr/local/lib/python3.12/site-packages/
 
 # Set working directory
 WORKDIR /app
@@ -13,11 +22,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN mkdir -p /app/ml_part/checkpoints
 
 # Copy only the requirements for serving
-COPY requirements-serve.txt /app/requirements.txt
+COPY requirements-serve.txt /app/requirements-serve.txt
 
 # Install Python dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -r /app/requirements-serve.txt && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    find /usr/local -name '*.pyc' -delete
 
 # Copy only the necessary files
 COPY backend/main.py /app/backend/
@@ -35,3 +47,7 @@ ENV MODEL_PATH=/app/ml_part/checkpoints/model.h5
 
 # Command to run the application
 CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+FROM python:3.12-alpine
+# Note: You'll need to add build dependencies for some packages
+RUN apk add --no-cache gcc musl-dev
