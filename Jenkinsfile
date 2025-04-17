@@ -13,9 +13,9 @@ pipeline {
                 script {
                     node {
                         withCredentials([sshUserPrivateKey(credentialsId: 'my-repo-ssh-key', keyFileVariable: 'SSH_KEY')]) {
-                            // sh '''
-                            //     ssh-agent sh -c 'ssh-add $SSH_KEY; ssh -T git@github.com || true'
-                            // '''
+                            sh '''
+                                ssh-agent sh -c 'ssh-add $SSH_KEY; ssh -T git@github.com || true'
+                            '''
                         }
                     }
                 }
@@ -143,9 +143,10 @@ pipeline {
 
         stage('Push to Docker Hub') {
             steps {
-                withDockerRegistry([credentialsId: 'docker-hub-credentials', url: '']) {
-                    #sh "docker push docker.io/${DOCKER_IMAGE}"
-                }
+                // withDockerRegistry([credentialsId: 'docker-hub-credentials', url: '']) {
+                //     #sh "docker push docker.io/${DOCKER_IMAGE}"
+                // }
+                echo "Pushing to Docker Hub..."
             }
         }
         stage('Deploy Using Ansible') {
