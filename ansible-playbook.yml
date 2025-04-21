@@ -3,6 +3,13 @@
   become: true
   become_method: sudo
   tasks:
+    # Check for existing processes using port 8000
+    - name: Check if port 8000 is in use
+      shell: netstat -tulpn | grep 8000 || true
+      register: port_check
+      changed_when: false
+      ignore_errors: true
+
     # Backend Container Tasks
     - name: Pull Backend Docker Image
       command: docker pull mt2024013/catvsdog
@@ -12,7 +19,12 @@
       ignore_errors: yes
 
     - name: Run the Backend Container
+      command: docker run -d --name catvsdog_container -p 8001:8000 mt2024013/catvsdog
+      when: port_check.stdout != ""
+
+    - name: Run the Backend Container on original port
       command: docker run -d --name catvsdog_container -p 8000:8000 mt2024013/catvsdog
+      when: port_check.stdout == ""
     
     # Frontend Container Tasks
     - name: Pull Frontend Docker Image
@@ -23,4 +35,9 @@
       ignore_errors: yes
 
     - name: Run the Frontend Container
-      command: docker run -d --name catvsdog_frontend_container -p 3000:80 mt2024013/catvsdog-frontend
+      command: docker run -d --name catvsdog_frontend_container -p 3000:80 -e REACT_APP_API_URL=http://localhost:8001 mt2024013/catvsdog-frontend
+      when: port_check.stdout != ""
+
+    - name: Run the Frontend Container with default port
+      command: docker run -d --name catvsdog_frontend_container -p 3000:80 -e REACT_APP_API_URL=http://localhost:8000 mt2024013/catvsdog-frontend
+      when: port_check.stdout == ""
