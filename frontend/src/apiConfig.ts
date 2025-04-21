@@ -1,5 +1,5 @@
 // API URL configuration
-export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://catvsdog-backend-service:8000';
 
 // Helper function to get the full API URL
 export const getApiUrl = (endpoint: string): string => {

@@ -157,7 +157,7 @@ pipeline {
                     // Build the frontend image with the Kubernetes service URL
                     sh "docker build -t ${FRONTEND_IMAGE} --build-arg REACT_APP_API_URL=http://catvsdog-backend-service:8000 -f frontend/Dockerfile frontend/"
                 }
-                echo "Building Frontend Docker Image..."
+                echo "Building Frontend Docker Image for Kubernetes deployment..."
             }
         }
 
