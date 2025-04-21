@@ -48,6 +48,6 @@ ENV MODEL_PATH=/app/ml_part/checkpoints/model.h5
 # Command to run the application
 CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
-FROM python:3.12-alpine
+
 # Note: You'll need to add build dependencies for some packages
-RUN apk add --no-cache gcc musl-dev
+# RUN apk add --no-cache gcc musl-dev
