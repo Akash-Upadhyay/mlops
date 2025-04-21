@@ -3,7 +3,6 @@ pipeline {
 
     environment {
         PATH = "/var/lib/jenkins/.local/bin:$PATH"
-        DOCKER_IMAGE = "mt2024013/catvsdog"
         BACKEND_IMAGE = "mt2024013/catvsdog"
         FRONTEND_IMAGE = "mt2024013/catvsdog-frontend"
     }
@@ -155,7 +154,8 @@ pipeline {
         stage('Build Frontend Docker Image') {
             steps {
                 script {
-                    sh "docker build -t ${FRONTEND_IMAGE} -f frontend/Dockerfile frontend/"
+                    // Build the frontend image with the Kubernetes service URL
+                    sh "docker build -t ${FRONTEND_IMAGE} --build-arg REACT_APP_API_URL=http://catvsdog-backend-service:8000 -f frontend/Dockerfile frontend/"
                 }
                 echo "Building Frontend Docker Image..."
             }
@@ -170,40 +170,130 @@ pipeline {
             }
         }
         
-        stage('Deploy Using Docker') {
+        stage('Deploy to Kubernetes') {
             steps {
                 sh '''
-                    ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory.ini ansible-playbook.yml
-                '''
-            }
-        }
-        
-        stage('Deploy Using Kubernetes') {
-            steps {
-                sh '''
+                    # Ensure kubectl is installed
+                    which kubectl || { echo "kubectl not found, installing..."; apt-get update && apt-get install -y kubectl; }
+                    
                     # Create k8s directory if it doesn't exist
                     mkdir -p k8s
                     
-                    # Copy the Kubernetes manifest files if they don't exist yet
-                    if [ ! -f "k8s/backend-deployment.yaml" ]; then
-                        cp ${WORKSPACE}/k8s/backend-deployment.yaml k8s/
-                    fi
+                    # Create or overwrite the backend deployment file
+                    cat > k8s/backend-deployment.yaml << 'EOF'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catvsdog-backend
+  labels:
+    app: catvsdog
+    tier: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: catvsdog
+      tier: backend
+  template:
+    metadata:
+      labels:
+        app: catvsdog
+        tier: backend
+    spec:
+      containers:
+      - name: backend
+        image: mt2024013/catvsdog:latest
+        ports:
+        - containerPort: 8000
+        resources:
+          limits:
+            cpu: "1"
+            memory: "1Gi"
+          requests:
+            cpu: "500m"
+            memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: catvsdog-backend-service
+  labels:
+    app: catvsdog
+    tier: backend
+spec:
+  selector:
+    app: catvsdog
+    tier: backend
+  ports:
+  - port: 8000
+    targetPort: 8000
+  type: ClusterIP
+EOF
+
+                    # Create or overwrite the frontend deployment file
+                    cat > k8s/frontend-deployment.yaml << 'EOF'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catvsdog-frontend
+  labels:
+    app: catvsdog
+    tier: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: catvsdog
+      tier: frontend
+  template:
+    metadata:
+      labels:
+        app: catvsdog
+        tier: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: mt2024013/catvsdog-frontend:latest
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "200m"
+            memory: "256Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: catvsdog-frontend-service
+  labels:
+    app: catvsdog
+    tier: frontend
+spec:
+  selector:
+    app: catvsdog
+    tier: frontend
+  ports:
+  - port: 80
+    targetPort: 80
+  type: NodePort
+EOF
+
+                    # Apply the Kubernetes manifests
+                    kubectl apply -f k8s/backend-deployment.yaml
+                    kubectl apply -f k8s/frontend-deployment.yaml
                     
-                    if [ ! -f "k8s/frontend-deployment.yaml" ]; then
-                        cp ${WORKSPACE}/k8s/frontend-deployment.yaml k8s/
-                    fi
+                    # Wait for deployments to be ready
+                    kubectl rollout status deployment/catvsdog-backend
+                    kubectl rollout status deployment/catvsdog-frontend
                     
-                    # Run the Kubernetes deployment
-                    ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory.ini k8s-ansible-playbook.yml
+                    # Get the frontend service NodePort and display it
+                    FRONTEND_PORT=$(kubectl get service catvsdog-frontend-service -o=jsonpath='{.spec.ports[0].nodePort}')
+                    echo "Frontend application is accessible at http://localhost:$FRONTEND_PORT"
                 '''
             }
-            when {
-                expression { return params.DEPLOY_TO_K8S }
-            }
         }
-    }
-    
-    parameters {
-        booleanParam(name: 'DEPLOY_TO_K8S', defaultValue: false, description: 'Deploy to Kubernetes instead of Docker')
     }
 }
