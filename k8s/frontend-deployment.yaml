@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catvsdog-frontend
+  labels:
+    app: catvsdog
+    tier: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: catvsdog
+      tier: frontend
+  template:
+    metadata:
+      labels:
+        app: catvsdog
+        tier: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: mt2024013/catvsdog-frontend:latest
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "200m"
+            memory: "256Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: catvsdog-frontend-service
+  labels:
+    app: catvsdog
+    tier: frontend
+spec:
+  selector:
+    app: catvsdog
+    tier: frontend
+  ports:
+  - port: 80
+    targetPort: 80
+  type: NodePort 

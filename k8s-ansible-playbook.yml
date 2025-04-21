@@ -1,0 +1,71 @@
+- name: Deploy ML Application to Kubernetes
+  hosts: local
+  become: false
+  tasks:
+    - name: Check if kubectl is installed
+      command: which kubectl
+      register: kubectl_check
+      ignore_errors: true
+      changed_when: false
+
+    - name: Fail if kubectl is not installed
+      fail:
+        msg: "kubectl is not installed. Please install kubectl first."
+      when: kubectl_check.rc != 0
+
+    - name: Create k8s directory if it doesn't exist
+      file:
+        path: "{{ playbook_dir }}/k8s"
+        state: directory
+        mode: '0755'
+
+    # Apply backend deployment and service
+    - name: Apply backend deployment and service
+      command: kubectl apply -f {{ playbook_dir }}/k8s/backend-deployment.yaml
+      register: backend_apply
+      changed_when: backend_apply.rc == 0
+
+    # Wait for backend deployment to be ready
+    - name: Wait for backend deployment to be ready
+      command: kubectl rollout status deployment/catvsdog-backend
+      register: backend_status
+      changed_when: false
+
+    # Build a frontend image with the backend service URL
+    - name: Build the frontend Docker image with the service name
+      command: >
+        docker build 
+        -t mt2024013/catvsdog-frontend:latest 
+        --build-arg REACT_APP_API_URL=http://catvsdog-backend-service:8000 
+        {{ playbook_dir }}/frontend/
+      register: frontend_build
+      changed_when: frontend_build.rc == 0
+
+    # Push the frontend image to Docker Hub (optional)
+    - name: Push frontend image to Docker Hub
+      command: docker push mt2024013/catvsdog-frontend:latest
+      register: frontend_push
+      changed_when: frontend_push.rc == 0
+      ignore_errors: true
+
+    # Apply frontend deployment and service
+    - name: Apply frontend deployment and service
+      command: kubectl apply -f {{ playbook_dir }}/k8s/frontend-deployment.yaml
+      register: frontend_apply
+      changed_when: frontend_apply.rc == 0
+
+    # Wait for frontend deployment to be ready
+    - name: Wait for frontend deployment to be ready
+      command: kubectl rollout status deployment/catvsdog-frontend
+      register: frontend_status
+      changed_when: false
+
+    # Get service information
+    - name: Get frontend service NodePort
+      command: kubectl get service catvsdog-frontend-service -o=jsonpath='{.spec.ports[0].nodePort}'
+      register: frontend_port
+      changed_when: false
+
+    - name: Display access information
+      debug:
+        msg: "Application deployed successfully. Frontend is accessible at http://localhost:{{ frontend_port.stdout }}" 
