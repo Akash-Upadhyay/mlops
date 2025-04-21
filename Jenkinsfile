@@ -170,12 +170,40 @@ pipeline {
             }
         }
         
-        stage('Deploy Using Ansible') {
+        stage('Deploy Using Docker') {
             steps {
                 sh '''
                     ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory.ini ansible-playbook.yml
                 '''
             }
         }
+        
+        stage('Deploy Using Kubernetes') {
+            steps {
+                sh '''
+                    # Create k8s directory if it doesn't exist
+                    mkdir -p k8s
+                    
+                    # Copy the Kubernetes manifest files if they don't exist yet
+                    if [ ! -f "k8s/backend-deployment.yaml" ]; then
+                        cp ${WORKSPACE}/k8s/backend-deployment.yaml k8s/
+                    fi
+                    
+                    if [ ! -f "k8s/frontend-deployment.yaml" ]; then
+                        cp ${WORKSPACE}/k8s/frontend-deployment.yaml k8s/
+                    fi
+                    
+                    # Run the Kubernetes deployment
+                    ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory.ini k8s-ansible-playbook.yml
+                '''
+            }
+            when {
+                expression { return params.DEPLOY_TO_K8S }
+            }
+        }
+    }
+    
+    parameters {
+        booleanParam(name: 'DEPLOY_TO_K8S', defaultValue: false, description: 'Deploy to Kubernetes instead of Docker')
     }
 }
