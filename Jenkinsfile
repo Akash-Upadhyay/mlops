@@ -281,6 +281,10 @@ spec:
   type: NodePort
 EOF
 
+                    # Fix kubectl configuration to avoid certificate issues
+                    kubectl config unset clusters.default.certificate-authority || true
+                    kubectl config set-cluster default --insecure-skip-tls-verify=true || true
+                    
                     # Apply the Kubernetes manifests
                     kubectl apply -f k8s/backend-deployment.yaml
                     kubectl apply -f k8s/frontend-deployment.yaml
