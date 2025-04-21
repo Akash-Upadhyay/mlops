@@ -3,6 +3,9 @@ FROM node:18-alpine as build
 
 WORKDIR /app
 
+# Define build argument for API URL with default value
+ARG REACT_APP_API_URL=http://localhost:8000
+
 # Copy package.json and package-lock.json
 COPY package*.json ./
 
@@ -12,9 +15,8 @@ RUN npm ci
 # Copy all files
 COPY . .
 
-# Hardcode the API URL directly in the .env file before building
-# We're using the host's port 8000 which is mapped to the backend container
-RUN echo "REACT_APP_API_URL=http://localhost:8000" > .env
+# Set the API URL from build argument
+RUN echo "REACT_APP_API_URL=$REACT_APP_API_URL" > .env
 
 # Build the app (outputs to /app/build)
 RUN npm run build

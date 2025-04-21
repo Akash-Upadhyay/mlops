@@ -27,17 +27,17 @@
       when: port_check.stdout == ""
     
     # Frontend Container Tasks
-    - name: Pull Frontend Docker Image
-      command: docker pull mt2024013/catvsdog-frontend
+    - name: Build Frontend Docker Image (Port 8001)
+      command: docker build -t mt2024013/catvsdog-frontend --build-arg REACT_APP_API_URL=http://localhost:8001 frontend/
+      when: port_check.stdout != ""
+
+    - name: Build Frontend Docker Image (Port 8000)
+      command: docker build -t mt2024013/catvsdog-frontend --build-arg REACT_APP_API_URL=http://localhost:8000 frontend/
+      when: port_check.stdout == ""
 
     - name: Stop existing frontend container
       command: docker rm -f catvsdog_frontend_container
       ignore_errors: yes
 
     - name: Run the Frontend Container
-      command: docker run -d --name catvsdog_frontend_container -p 3000:80 -e REACT_APP_API_URL=http://localhost:8001 mt2024013/catvsdog-frontend
-      when: port_check.stdout != ""
-
-    - name: Run the Frontend Container with default port
-      command: docker run -d --name catvsdog_frontend_container -p 3000:80 -e REACT_APP_API_URL=http://localhost:8000 mt2024013/catvsdog-frontend
-      when: port_check.stdout == ""
+      command: docker run -d --name catvsdog_frontend_container -p 3000:80 mt2024013/catvsdog-frontend
