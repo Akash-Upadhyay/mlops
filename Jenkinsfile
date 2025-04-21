@@ -282,14 +282,48 @@ spec:
 EOF
 
                     # Fix kubectl configuration to avoid certificate issues
-                    kubectl config unset clusters.default.certificate-authority || true
-                    kubectl config set-cluster default --insecure-skip-tls-verify=true || true
+                    kubectl config view
+                    CURRENT_CONTEXT=$(kubectl config current-context || echo "default")
+                    kubectl config set-context $CURRENT_CONTEXT --insecure-skip-tls-verify=true
+                    kubectl config unset "clusters.${CURRENT_CONTEXT}.certificate-authority" || true
+                    kubectl config unset "clusters.${CURRENT_CONTEXT}.certificate-authority-data" || true
                     
-                    # Apply the Kubernetes manifests
-                    kubectl apply -f k8s/backend-deployment.yaml
-                    kubectl apply -f k8s/frontend-deployment.yaml
+                    # Fallback approach: Create a new, clean kubeconfig file if needed
+                    if ! kubectl apply -f k8s/backend-deployment.yaml; then
+                        echo "Trying fallback method with clean kubeconfig..."
+                        mkdir -p ~/.kube
+                        # Create a minimal kubeconfig file with only what's needed
+                        cat > ~/.kube/clean-config << EOF
+apiVersion: v1
+kind: Config
+clusters:
+- cluster:
+    insecure-skip-tls-verify: true
+    server: $(kubectl config view -o jsonpath='{.clusters[0].cluster.server}')
+  name: clean-cluster
+contexts:
+- context:
+    cluster: clean-cluster
+    user: clean-user
+  name: clean-context
+current-context: clean-context
+users:
+- name: clean-user
+  user: {}
+EOF
+                        # Try applying with the clean config
+                        KUBECONFIG=~/.kube/clean-config kubectl apply -f k8s/backend-deployment.yaml
+                        KUBECONFIG=~/.kube/clean-config kubectl apply -f k8s/frontend-deployment.yaml
+                        
+                        # Use clean config for remaining commands
+                        export KUBECONFIG=~/.kube/clean-config
+                    else
+                        # Apply frontend if backend worked
+                        kubectl apply -f k8s/frontend-deployment.yaml
+                    fi
                     
                     # Wait for deployments to be ready
+                    echo "Waiting for deployments to be ready..."
                     kubectl rollout status deployment/catvsdog-backend
                     kubectl rollout status deployment/catvsdog-frontend
                     
