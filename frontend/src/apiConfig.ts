@@ -5,5 +5,11 @@ export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://catvsdog-ba
 export const getApiUrl = (endpoint: string): string => {
   // Make sure the endpoint starts with a slash if not already
   const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  return `${API_BASE_URL}${formattedEndpoint}`;
+  
+  // Make sure endpoint ends with a trailing slash for backend compatibility
+  const withTrailingSlash = formattedEndpoint.endsWith('/') 
+    ? formattedEndpoint 
+    : `${formattedEndpoint}/`;
+    
+  return `${API_BASE_URL}${withTrailingSlash}`;
 }; 
