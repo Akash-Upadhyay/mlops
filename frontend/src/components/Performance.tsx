@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import './Performance.css';
+import { getApiUrl } from '../apiConfig';
 
 interface Metrics {
   training: {
@@ -45,7 +46,7 @@ const Performance: React.FC = () => {
     setError(null);
     
     try {
-      const response = await fetch('/metrics/');
+      const response = await fetch(getApiUrl('metrics'));
       
       if (!response.ok) {
         if (response.status === 404) {
@@ -69,7 +70,7 @@ const Performance: React.FC = () => {
     if (!trainingJobId) return;
 
     try {
-      const response = await fetch(`/training-status/${trainingJobId}`);
+      const response = await fetch(getApiUrl(`training-status/${trainingJobId}`));
       if (!response.ok) {
         throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
       }
@@ -110,7 +111,7 @@ const Performance: React.FC = () => {
     setError(null);
     
     try {
-      const response = await fetch('/retrain/', {
+      const response = await fetch(getApiUrl('retrain'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

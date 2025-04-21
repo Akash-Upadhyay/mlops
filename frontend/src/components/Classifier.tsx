@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getApiUrl } from '../apiConfig';
 
 const Classifier: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -49,7 +50,7 @@ const Classifier: React.FC = () => {
     formData.append('file', selectedFile);
 
     try {
-      const response = await fetch('/predict/', {
+      const response = await fetch(getApiUrl('predict'), {
         method: 'POST',
         body: formData,
       });
@@ -74,7 +75,7 @@ const Classifier: React.FC = () => {
     }
     
     try {
-      const response = await fetch('/feedback/', {
+      const response = await fetch(getApiUrl('feedback'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

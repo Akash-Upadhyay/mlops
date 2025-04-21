@@ -1,14 +1,26 @@
-- name: Deploy Calculator Container
+- name: Deploy ML Application Containers
   hosts: local
   become: true
   become_method: sudo
   tasks:
-    - name: Pull Docker Image
+    # Backend Container Tasks
+    - name: Pull Backend Docker Image
       command: docker pull mt2024013/catvsdog
 
-    - name: Stop existing container
+    - name: Stop existing backend container
       command: docker rm -f catvsdog_container
       ignore_errors: yes
 
-    - name: Run the Calculator Container in Interactive Mode
-      command: docker run -dit --name catvsdog_container mt2024013/catvsdog
+    - name: Run the Backend Container
+      command: docker run -d --name catvsdog_container -p 8000:8000 mt2024013/catvsdog
+    
+    # Frontend Container Tasks
+    - name: Pull Frontend Docker Image
+      command: docker pull mt2024013/catvsdog-frontend
+
+    - name: Stop existing frontend container
+      command: docker rm -f catvsdog_frontend_container
+      ignore_errors: yes
+
+    - name: Run the Frontend Container
+      command: docker run -d --name catvsdog_frontend_container -p 3000:80 mt2024013/catvsdog-frontend

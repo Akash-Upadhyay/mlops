@@ -4,7 +4,8 @@ pipeline {
     environment {
         PATH = "/var/lib/jenkins/.local/bin:$PATH"
         DOCKER_IMAGE = "mt2024013/catvsdog"
-
+        BACKEND_IMAGE = "mt2024013/catvsdog"
+        FRONTEND_IMAGE = "mt2024013/catvsdog-frontend"
     }
 
     stages {
@@ -133,23 +134,42 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Build Backend Docker Image') {
             steps {
                 script {
-                    sh "docker build -t ${DOCKER_IMAGE} ."
+                    sh "docker build -t ${BACKEND_IMAGE} ."
                 }
-                echo "Building Docker Image..."
+                echo "Building Backend Docker Image..."
             }
         }
 
-        stage('Push to Docker Hub') {
+        stage('Push Backend to Docker Hub') {
             steps {
                 withDockerRegistry([credentialsId: 'docker-hub-credentials', url: '']) {
-                    sh "docker push docker.io/${DOCKER_IMAGE}"
+                    sh "docker push docker.io/${BACKEND_IMAGE}"
                 }
-                echo "Pushing to Docker Hub..."
+                echo "Pushing Backend to Docker Hub..."
             }
         }
+        
+        stage('Build Frontend Docker Image') {
+            steps {
+                script {
+                    sh "docker build -t ${FRONTEND_IMAGE} -f frontend/Dockerfile frontend/"
+                }
+                echo "Building Frontend Docker Image..."
+            }
+        }
+
+        stage('Push Frontend to Docker Hub') {
+            steps {
+                withDockerRegistry([credentialsId: 'docker-hub-credentials', url: '']) {
+                    sh "docker push docker.io/${FRONTEND_IMAGE}"
+                }
+                echo "Pushing Frontend to Docker Hub..."
+            }
+        }
+        
         stage('Deploy Using Ansible') {
             steps {
                 sh '''
