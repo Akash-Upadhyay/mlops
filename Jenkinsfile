@@ -336,8 +336,6 @@
 //     }
 // }
 
-
-
 pipeline {
     agent any
 
@@ -348,8 +346,168 @@ pipeline {
     }
 
     stages {
-        // Other stages remain the same...
+        stage('Test SSH Connection') {
+            steps {
+                script {
+                    node {
+                        withCredentials([sshUserPrivateKey(credentialsId: 'my-repo-ssh-key', keyFileVariable: 'SSH_KEY')]) {
+                            sh '''
+                                ssh-agent sh -c 'ssh-add $SSH_KEY; ssh -T git@github.com || true'
+                            '''
+                        }
+                    }
+                }
+            }
+        }
 
+        stage('Clone Repository') {
+            steps {
+                echo 'Cloning the Git repository...'
+                checkout([$class: 'GitSCM', 
+                    branches: [[name: '*/main']], 
+                    userRemoteConfigs: [[
+                        url: 'git@github.com:Akash-Upadhyay/mlops.git',
+                        credentialsId: 'my-repo-ssh-key'
+                    ]],
+                    extensions: [[$class: 'LocalBranch', localBranch: 'main']]
+                ])
+            }
+        }
+
+        stage('Setup Virtual Environment') {
+            steps {
+                echo 'Setting up virtual environment...'
+                sh '''
+                    python3 -m venv venv
+                    . venv/bin/activate
+                    pip install --upgrade pip
+                    pip install dvc[gdrive]
+                '''
+            }
+        }
+
+        stage('Verify Clone') {
+            steps {
+                echo 'Listing files in workspace...'
+                sh 'ls -la'
+            }
+        }
+
+        stage('DVC Pull') {
+            steps {
+                echo 'Pulling data and models from DVC remote...'
+                withCredentials([file(credentialsId: 'dvc-gdrive-creds', variable: 'GDRIVE_CRED')]) {
+                    sh '''
+                        . venv/bin/activate
+                        dvc remote modify gdrive_remote gdrive_use_service_account true
+                        dvc remote modify --local gdrive_remote gdrive_service_account_json_file_path "$GDRIVE_CRED"
+                        echo "GDRIVE_CRED: $GDRIVE_CRED"
+                        dvc pull
+                    '''
+                }
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                echo 'Installing dependencies from requirements.txt...'
+                sh '''
+                    . venv/bin/activate
+                    pip install -r requirements.txt
+                '''
+            }
+        }
+
+        stage('DVC Reproduce') {
+            steps {
+                echo 'Reproducing the DVC pipeline...'
+                sh '''
+                    . venv/bin/activate
+                    dvc repro
+                '''
+            }
+        }
+
+        stage('DVC Push') {
+            steps {
+                echo 'Pushing data and models to DVC remote...'
+                withCredentials([file(credentialsId: 'dvc-gdrive-creds', variable: 'GDRIVE_CRED')]) {
+                    sh '''
+                        . venv/bin/activate
+                        dvc remote modify gdrive_remote gdrive_use_service_account true
+                        dvc remote modify --local gdrive_remote gdrive_service_account_json_file_path "$GDRIVE_CRED"
+                        echo "GDRIVE_CRED: $GDRIVE_CRED"
+                        dvc push
+                    '''
+                }
+            }
+        }
+
+        stage('Git Push') {
+            steps {
+                echo 'Pushing changes to Git repository...'
+                withCredentials([sshUserPrivateKey(credentialsId: 'my-repo-ssh-key', keyFileVariable: 'SSH_KEY')]) {
+                    sh '''
+                        # Setup Git user information
+                        git config user.name "Akash Upadhyay"
+                        git config user.email "akashupadhyay629@gmail.com"
+                        
+                        # Make some changes
+                        echo "Update from Jenkins pipeline build 40" > jenkins_update.txt
+                        
+                        # Verify branch and status
+                        git branch
+                        git status
+                        
+                        # Stage and commit changes
+                        git add -A
+                        git diff-index --quiet HEAD || git commit -m "Automated commit from Jenkins"
+
+                        
+                        # Push changes using SSH
+                        ssh-agent sh -c 'ssh-add $SSH_KEY; git push origin main'
+                    '''
+                }
+            }
+        }
+
+        stage('Build Backend Docker Image') {
+            steps {
+                script {
+                    sh "docker build -t ${BACKEND_IMAGE} ."
+                }
+                echo "Building Backend Docker Image..."
+            }
+        }
+
+        stage('Push Backend to Docker Hub') {
+            steps {
+                withDockerRegistry([credentialsId: 'docker-hub-credentials', url: '']) {
+                    sh "docker push docker.io/${BACKEND_IMAGE}"
+                }
+                echo "Pushing Backend to Docker Hub..."
+            }
+        }
+        
+        stage('Build Frontend Docker Image') {
+            steps {
+                script {
+                    // Build the frontend image with the Kubernetes service URL
+                    sh "docker build -t ${FRONTEND_IMAGE} --build-arg REACT_APP_API_URL=http://catvsdog-backend-service:8000 -f frontend/Dockerfile frontend/"
+                }
+                echo "Building Frontend Docker Image for Kubernetes deployment..."
+            }
+        }
+
+        stage('Push Frontend to Docker Hub') {
+            steps {
+                withDockerRegistry([credentialsId: 'docker-hub-credentials', url: '']) {
+                    sh "docker push docker.io/${FRONTEND_IMAGE}"
+                }
+                echo "Pushing Frontend to Docker Hub..."
+            }
+        }
+        
         stage('Deploy to Kubernetes') {
             steps {
                 sh '''
@@ -461,7 +619,7 @@ spec:
   type: NodePort
 EOF
 
-                    # Create Ingress resource for the frontend and backend
+                    # Create or overwrite the ingress resource file
                     cat > k8s/ingress.yaml << 'EOF'
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -471,67 +629,22 @@ metadata:
     nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   rules:
-  - host: "catvsdog.example.com"
+  - host: catvsdog.k8s.local
     http:
       paths:
-      - path: /frontend
+      - path: /
         pathType: Prefix
         backend:
           service:
             name: catvsdog-frontend-service
             port:
               number: 80
-      - path: /backend
-        pathType: Prefix
-        backend:
-          service:
-            name: catvsdog-backend-service
-            port:
-              number: 8000
 EOF
 
-                    # Fix kubectl configuration to avoid certificate issues
-                    kubectl config view
-                    CURRENT_CONTEXT=$(kubectl config current-context || echo "default")
-                    kubectl config set-context $CURRENT_CONTEXT --insecure-skip-tls-verify=true
-                    kubectl config unset "clusters.${CURRENT_CONTEXT}.certificate-authority" || true
-                    kubectl config unset "clusters.${CURRENT_CONTEXT}.certificate-authority-data" || true
-                    
-                    # Fallback approach: Create a new, clean kubeconfig file if needed
-                    if ! kubectl apply -f k8s/backend-deployment.yaml; then
-                        echo "Trying fallback method with clean kubeconfig..."
-                        mkdir -p ~/.kube
-                        # Create a minimal kubeconfig file with only what's needed
-                        cat > ~/.kube/clean-config << EOF
-apiVersion: v1
-kind: Config
-clusters:
-- cluster:
-    insecure-skip-tls-verify: true
-    server: $(kubectl config view -o jsonpath='{.clusters[0].cluster.server}')
-  name: clean-cluster
-contexts:
-- context:
-    cluster: clean-cluster
-    user: clean-user
-  name: clean-context
-current-context: clean-context
-users:
-- name: clean-user
-  user: {}
-EOF
-                        # Try applying with the clean config
-                        KUBECONFIG=~/.kube/clean-config kubectl apply -f k8s/backend-deployment.yaml
-                        KUBECONFIG=~/.kube/clean-config kubectl apply -f k8s/frontend-deployment.yaml
-                        KUBECONFIG=~/.kube/clean-config kubectl apply -f k8s/ingress.yaml
-                        
-                        # Use clean config for remaining commands
-                        export KUBECONFIG=~/.kube/clean-config
-                    else
-                        # Apply frontend and ingress if backend worked
-                        kubectl apply -f k8s/frontend-deployment.yaml
-                        kubectl apply -f k8s/ingress.yaml
-                    fi
+                    # Apply Kubernetes resources
+                    kubectl apply -f k8s/backend-deployment.yaml
+                    kubectl apply -f k8s/frontend-deployment.yaml
+                    kubectl apply -f k8s/ingress.yaml
                     
                     # Wait for deployments to be ready
                     echo "Waiting for deployments to be ready..."
