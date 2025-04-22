@@ -1,5 +1,5 @@
-// API URL configuration - use relative URLs so all requests go to the same host
-export const API_BASE_URL = ''; // Empty string for relative URLs
+// API URL configuration for ingress-based Kubernetes deployment
+// With ingress, all requests go through the same domain with /api prefix
 
 // Helper function to get the full API URL
 export const getApiUrl = (endpoint: string): string => {
@@ -11,6 +11,6 @@ export const getApiUrl = (endpoint: string): string => {
     ? formattedEndpoint 
     : `${formattedEndpoint}/`;
     
-  // Add /api prefix to all requests
+  // Add /api prefix to all requests (this will be routed by the ingress controller)
   return `/api${withTrailingSlash}`;
 }; 

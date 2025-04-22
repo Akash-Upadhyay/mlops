@@ -281,6 +281,36 @@ spec:
   type: NodePort
 EOF
 
+                    # Create or overwrite the ingress file
+                    cat > k8s/ingress.yaml << 'EOF'
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: catvsdog-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  rules:
+  - host: catvsdog.local
+    http:
+      paths:
+      - path: /api(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: catvsdog-backend-service
+            port:
+              number: 8000
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: catvsdog-frontend-service
+            port:
+              number: 80
+EOF
+
                     # Fix kubectl configuration to avoid certificate issues
                     kubectl config view
                     CURRENT_CONTEXT=$(kubectl config current-context || echo "default")
@@ -314,13 +344,18 @@ EOF
                         # Try applying with the clean config
                         KUBECONFIG=~/.kube/clean-config kubectl apply -f k8s/backend-deployment.yaml
                         KUBECONFIG=~/.kube/clean-config kubectl apply -f k8s/frontend-deployment.yaml
+                        KUBECONFIG=~/.kube/clean-config kubectl apply -f k8s/ingress.yaml
                         
                         # Use clean config for remaining commands
                         export KUBECONFIG=~/.kube/clean-config
                     else
                         # Apply frontend if backend worked
                         kubectl apply -f k8s/frontend-deployment.yaml
+                        kubectl apply -f k8s/ingress.yaml
                     fi
+                    
+                    # Enable ingress in minikube if needed
+                    minikube addons enable ingress || true
                     
                     # Wait for deployments to be ready
                     echo "Waiting for deployments to be ready..."
