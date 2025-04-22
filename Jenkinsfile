@@ -154,10 +154,10 @@
 //         stage('Build Frontend Docker Image') {
 //             steps {
 //                 script {
-//                     // Build the frontend image with the Kubernetes service URL
-//                     sh "docker build -t ${FRONTEND_IMAGE} --build-arg REACT_APP_API_URL=http://catvsdog-backend-service:8000 -f frontend/Dockerfile frontend/"
+//                     // Build the frontend image with the localhost and NodePort for backend service
+//                     sh "docker build -t ${FRONTEND_IMAGE} --build-arg REACT_APP_API_URL=http://localhost:30800 -f frontend/Dockerfile frontend/"
 //                 }
-//                 echo "Building Frontend Docker Image for Kubernetes deployment..."
+//                 echo "Building Frontend Docker Image for Kubernetes deployment with NodePort access..."
 //             }
 //         }
 
@@ -492,10 +492,10 @@ pipeline {
         stage('Build Frontend Docker Image') {
             steps {
                 script {
-                    // Build the frontend image with the Kubernetes service URL
-                    sh "docker build -t ${FRONTEND_IMAGE} --build-arg REACT_APP_API_URL=http://catvsdog-backend-service:8000 -f frontend/Dockerfile frontend/"
+                    // Build the frontend image with the localhost and NodePort for backend service
+                    sh "docker build -t ${FRONTEND_IMAGE} --build-arg REACT_APP_API_URL=http://localhost:30800 -f frontend/Dockerfile frontend/"
                 }
-                echo "Building Frontend Docker Image for Kubernetes deployment..."
+                echo "Building Frontend Docker Image for Kubernetes deployment with NodePort access..."
             }
         }
 
@@ -550,6 +550,12 @@ spec:
           requests:
             cpu: "500m"
             memory: "512Mi"
+        readinessProbe:
+          httpGet:
+            path: /metrics/
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
 ---
 apiVersion: v1
 kind: Service
@@ -565,7 +571,8 @@ spec:
   ports:
   - port: 8000
     targetPort: 8000
-  type: ClusterIP
+    nodePort: 30800
+  type: NodePort
 EOF
 
                     # Create or overwrite the frontend deployment file

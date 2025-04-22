@@ -1,5 +1,5 @@
-// API URL configuration - use relative URLs so all requests go to the same host
-export const API_BASE_URL = ''; // Empty string for relative URLs
+// API URL configuration - use localhost with the exposed NodePort
+export const API_BASE_URL = 'http://localhost:30800';
 
 // Helper function to get the full API URL
 export const getApiUrl = (endpoint: string): string => {
@@ -11,6 +11,5 @@ export const getApiUrl = (endpoint: string): string => {
     ? formattedEndpoint 
     : `${formattedEndpoint}/`;
     
-  // Add /api prefix to all requests
-  return `/api${withTrailingSlash}`;
+  return `${API_BASE_URL}${withTrailingSlash}`;
 }; 
