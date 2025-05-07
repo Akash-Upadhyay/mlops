@@ -40,35 +40,43 @@
 
     - name: Delete existing frontend deployment if exists
       command: kubectl delete deployment catvsdog-frontend
+      become: true
       ignore_errors: true
 
     - name: Delete existing backend deployment if exists
       command: kubectl delete deployment catvsdog-backend
+      become: true
       ignore_errors: true
 
     - name: Delete existing frontend service if exists
       command: kubectl delete service catvsdog-frontend-service
+      become: true
       ignore_errors: true
 
     - name: Delete existing backend service if exists
       command: kubectl delete service catvsdog-backend-service
+      become: true
       ignore_errors: true
 
     - name: Apply backend deployment
       command: kubectl apply -f k8s/backend-deployment.yaml
+      become: true
       register: backend_deployment
 
     - name: Apply frontend deployment
       command: kubectl apply -f k8s/frontend-deployment.yaml
+      become: true
       register: frontend_deployment
 
     - name: Wait for pods to be ready
       shell: kubectl wait --for=condition=Ready pod -l app=catvsdog --timeout=120s
+      become: true
       register: ready_wait
       ignore_errors: true
 
     - name: Get pod status
       command: kubectl get pods -l app=catvsdog
+      become: true
       register: pod_status
 
     - name: Get application URLs
