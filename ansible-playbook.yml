@@ -3,7 +3,7 @@
 - name: Deploy Cat vs Dog Classifier to Kubernetes
   hosts: local
   connection: local
-  become: false
+  become: true
   vars:
     backend_image: mt2024013/catvsdog:latest
     frontend_image: mt2024013/catvsdog-frontend:latest
