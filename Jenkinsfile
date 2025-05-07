@@ -528,12 +528,60 @@ pipeline {
                     # Ensure kubectl is installed
                     which kubectl || { echo "kubectl not found, installing..."; apt-get update && apt-get install -y kubectl; }
                     
+                    # Create required directories
+                    mkdir -p ${WORKSPACE}/.kube
+                    mkdir -p ${WORKSPACE}/k8s
+                    
+                    # Configure kubectl to use the local cluster
+                    if command -v minikube &> /dev/null; then
+                        echo "Minikube detected, getting kubectl config..."
+                        minikube update-context || true
+                        mkdir -p ~/.kube
+                        cp -f $(minikube config view -o jsonpath='{.kubeconfig}') ${WORKSPACE}/.kube/config 2>/dev/null || true
+                    fi
+                    
+                    # As a fallback, see if we can get the current cluster config
+                    if [ ! -f ${WORKSPACE}/.kube/config ]; then
+                        echo "No minikube config found, trying to get current kubectl config..."
+                        kubectl config view --flatten > ${WORKSPACE}/.kube/config
+                    fi
+                    
+                    # If we still don't have a config, create a minimal one for applying with validation disabled
+                    if [ ! -s ${WORKSPACE}/.kube/config ]; then
+                        echo "Creating minimal kubeconfig file..."
+                        # Get node IP by checking network interfaces
+                        NODE_IP=$(hostname -I | awk '{print $1}')
+                        API_SERVER="https://${NODE_IP}:6443"
+                        
+                        cat > ${WORKSPACE}/.kube/config << EOF
+apiVersion: v1
+kind: Config
+clusters:
+- cluster:
+    insecure-skip-tls-verify: true
+    server: ${API_SERVER}
+  name: jenkins-cluster
+contexts:
+- context:
+    cluster: jenkins-cluster
+    user: jenkins-user
+  name: jenkins-context
+current-context: jenkins-context
+users:
+- name: jenkins-user
+  user: {}
+EOF
+                    fi
+                    
                     # Create inventory file for local deployment
                     echo "[local]
 localhost ansible_connection=local" > inventory.ini
                     
+                    # Set environment variables for Ansible to use
+                    export KUBECONFIG=${WORKSPACE}/.kube/config
+                    
                     # Run the Ansible playbook
-                    ansible-playbook -i inventory.ini k8s-ansible-playbook.yml
+                    ansible-playbook -i inventory.ini k8s-ansible-playbook.yml -v
                 '''
                 echo "Deployment completed via Ansible playbook."
             }

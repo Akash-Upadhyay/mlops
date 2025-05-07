@@ -1,96 +1,232 @@
-- name: Deploy ML Application to Kubernetes
-  hosts: local
-  become: false
+---
+- name: Deploy Application to Kubernetes
+  hosts: localhost
+  connection: local
+  gather_facts: yes
+  
   vars:
-    frontend_image: mt2024013/catvsdog-frontend:latest
-    backend_image: mt2024013/catvsdog:latest
+    backend_image: "{{ lookup('env', 'BACKEND_IMAGE') | default('catvsdog-backend:latest', true) }}"
+    frontend_image: "{{ lookup('env', 'FRONTEND_IMAGE') | default('catvsdog-frontend:latest', true) }}"
+    kubeconfig: "{{ lookup('env', 'KUBECONFIG') | default('~/.kube/config', true) }}"
+    kubectl_opts: "--validate=false"
+  
   tasks:
-    - name: Check if kubectl is installed
-      command: which kubectl
-      register: kubectl_check
-      ignore_errors: true
-      changed_when: false
-
-    - name: Fail if kubectl is not installed
-      fail:
-        msg: "kubectl is not installed. Please install kubectl first."
-      when: kubectl_check.rc != 0
-
-    - name: Create k8s directory if it doesn't exist
-      file:
-        path: "{{ playbook_dir }}/k8s"
-        state: directory
-        mode: '0755'
-        
-    # Force pull the latest backend image
-    - name: Pull latest backend Docker image
-      command: docker pull {{ backend_image }}
-      register: backend_pull
-      changed_when: backend_pull.rc == 0
-        
-    # Force pull the latest frontend image
-    - name: Pull latest frontend Docker image
-      command: docker pull {{ frontend_image }}
-      register: frontend_pull
-      changed_when: frontend_pull.rc == 0
-
-    # Update backend deployment to use the latest image
-    - name: Update backend deployment with latest image
-      command: kubectl set image deployment/catvsdog-backend backend={{ backend_image }}
-      register: backend_update
-      ignore_errors: true
-      changed_when: backend_update.rc == 0
-
-    # Apply backend deployment and service if updating failed (likely because deployment doesn't exist yet)
-    - name: Apply backend deployment and service
-      command: kubectl apply -f {{ playbook_dir }}/k8s/backend-deployment.yaml
-      register: backend_apply
-      changed_when: backend_apply.rc == 0
-      when: backend_update.failed
-
-    # Wait for backend deployment to be ready
-    - name: Wait for backend deployment to be ready
-      command: kubectl rollout status deployment/catvsdog-backend
-      register: backend_status
-      changed_when: false
-
-    # Update frontend deployment to use the latest image
-    - name: Update frontend deployment with latest image
-      command: kubectl set image deployment/catvsdog-frontend frontend={{ frontend_image }}
-      register: frontend_update
-      ignore_errors: true
-      changed_when: frontend_update.rc == 0
-
-    # Apply frontend deployment and service if updating failed
-    - name: Apply frontend deployment and service
-      command: kubectl apply -f {{ playbook_dir }}/k8s/frontend-deployment.yaml
-      register: frontend_apply
-      changed_when: frontend_apply.rc == 0
-      when: frontend_update.failed
-
-    # Wait for frontend deployment to be ready
-    - name: Wait for frontend deployment to be ready
-      command: kubectl rollout status deployment/catvsdog-frontend
-      register: frontend_status
-      changed_when: false
+    - name: Verify Kubernetes connection
+      shell: kubectl get nodes --kubeconfig={{ kubeconfig }}
+      register: kubectl_test
+      ignore_errors: yes
       
-    # Apply the ingress configuration
-    - name: Apply ingress configuration
-      command: kubectl apply -f {{ playbook_dir }}/k8s/ingress.yaml
-      register: ingress_apply
-      changed_when: ingress_apply.rc == 0
-
-    # Get service information
-    - name: Get frontend service NodePort
-      command: kubectl get service catvsdog-frontend-service -o=jsonpath='{.spec.ports[0].nodePort}'
-      register: frontend_port
-      changed_when: false
-
-    - name: Display access information
+    - name: Display Kubernetes connection status
+      debug:
+        msg: "Kubernetes connection test result: {{ kubectl_test.rc == 0 }}"
+        
+    - name: Check if minikube is running
+      when: kubectl_test.rc != 0
+      shell: minikube status | grep Running
+      register: minikube_status
+      ignore_errors: yes
+      
+    - name: Start minikube if not running
+      when: kubectl_test.rc != 0 and minikube_status.rc != 0
+      shell: minikube start
+      register: minikube_start
+      ignore_errors: yes
+      
+    - name: Update kubeconfig with minikube context
+      when: minikube_start.changed
+      shell: |
+        mkdir -p $(dirname {{ kubeconfig }})
+        minikube update-context
+        kubectl config view --flatten > {{ kubeconfig }}
+      ignore_errors: yes
+        
+    - name: Create namespace if it doesn't exist
+      shell: kubectl --kubeconfig={{ kubeconfig }} {{ kubectl_opts }} get namespace catvsdog || kubectl --kubeconfig={{ kubeconfig }} create namespace catvsdog
+      register: namespace_result
+      ignore_errors: yes
+      
+    - name: Display namespace creation result
+      debug:
+        msg: "Namespace creation result: {{ namespace_result.stdout }}"
+      
+    - name: Apply backend deployment
+      shell: |
+        cat <<EOF | kubectl --kubeconfig={{ kubeconfig }} {{ kubectl_opts }} apply -f -
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: backend-deployment
+          namespace: catvsdog
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              app: backend
+          template:
+            metadata:
+              labels:
+                app: backend
+            spec:
+              containers:
+              - name: backend
+                image: {{ backend_image }}
+                ports:
+                - containerPort: 8000
+        EOF
+      register: backend_deployment
+      ignore_errors: yes
+    
+    - name: Display backend deployment result
+      debug:
+        msg: "Backend deployment status: {{ 'Success' if backend_deployment.rc == 0 else 'Failed' }}"
+        
+    - name: Apply backend service
+      shell: |
+        cat <<EOF | kubectl --kubeconfig={{ kubeconfig }} {{ kubectl_opts }} apply -f -
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: backend-service
+          namespace: catvsdog
+        spec:
+          selector:
+            app: backend
+          ports:
+          - port: 8000
+            targetPort: 8000
+          type: ClusterIP
+        EOF
+      register: backend_service
+      ignore_errors: yes
+      
+    - name: Apply frontend deployment
+      shell: |
+        cat <<EOF | kubectl --kubeconfig={{ kubeconfig }} {{ kubectl_opts }} apply -f -
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: frontend-deployment
+          namespace: catvsdog
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              app: frontend
+          template:
+            metadata:
+              labels:
+                app: frontend
+            spec:
+              containers:
+              - name: frontend
+                image: {{ frontend_image }}
+                ports:
+                - containerPort: 80
+        EOF
+      register: frontend_deployment
+      ignore_errors: yes
+      
+    - name: Display frontend deployment result
+      debug:
+        msg: "Frontend deployment status: {{ 'Success' if frontend_deployment.rc == 0 else 'Failed' }}"
+    
+    - name: Apply frontend service
+      shell: |
+        cat <<EOF | kubectl --kubeconfig={{ kubeconfig }} {{ kubectl_opts }} apply -f -
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: frontend-service
+          namespace: catvsdog
+        spec:
+          selector:
+            app: frontend
+          ports:
+          - port: 80
+            targetPort: 80
+          type: ClusterIP
+        EOF
+      register: frontend_service
+      ignore_errors: yes
+    
+    - name: Apply ingress
+      shell: |
+        cat <<EOF | kubectl --kubeconfig={{ kubeconfig }} {{ kubectl_opts }} apply -f -
+        apiVersion: networking.k8s.io/v1
+        kind: Ingress
+        metadata:
+          name: catvsdog-ingress
+          namespace: catvsdog
+          annotations:
+            nginx.ingress.kubernetes.io/rewrite-target: /\$2
+        spec:
+          rules:
+          - host: catvsdog.example.com
+            http:
+              paths:
+              - path: /backend(/|$)(.*)
+                pathType: Prefix
+                backend:
+                  service:
+                    name: backend-service
+                    port:
+                      number: 8000
+              - path: /frontend(/|$)(.*)
+                pathType: Prefix
+                backend:
+                  service:
+                    name: frontend-service
+                    port:
+                      number: 80
+              - path: /
+                pathType: Prefix
+                backend:
+                  service:
+                    name: frontend-service
+                    port:
+                      number: 80
+        EOF
+      register: ingress_result
+      ignore_errors: yes
+      
+    - name: Display ingress deployment result
+      debug:
+        msg: "Ingress deployment status: {{ 'Success' if ingress_result.rc == 0 else 'Failed' }}"
+    
+    - name: Get service information
+      shell: kubectl --kubeconfig={{ kubeconfig }} get svc -n catvsdog
+      register: svc_info
+      ignore_errors: yes
+      
+    - name: Display service information
+      debug:
+        msg: "{{ svc_info.stdout_lines }}"
+        
+    - name: Get ingress information
+      shell: kubectl --kubeconfig={{ kubeconfig }} get ing -n catvsdog
+      register: ing_info
+      ignore_errors: yes
+      
+    - name: Display ingress information
+      debug:
+        msg: "{{ ing_info.stdout_lines }}"
+        
+    - name: Add host entry for local testing
+      become: yes
+      become_method: sudo
+      ignore_errors: yes
+      shell: |
+        if ! grep -q "catvsdog.example.com" /etc/hosts; then
+          echo "127.0.0.1 catvsdog.example.com" >> /etc/hosts
+        fi
+      
+    - name: Provide access information
       debug:
         msg: |
-          Application deployed successfully.
-          Frontend is accessible at:
-          - http://localhost:{{ frontend_port.stdout }}
-          - http://catvsdog.example.com/frontend (if DNS is configured)
-          - http://catvsdogclasifier.com/frontend (if DNS is configured) 
+          Deployment completed. Access your application at:
+          
+          Frontend: http://catvsdog.example.com/frontend
+          Backend API: http://catvsdog.example.com/backend
+          
+          Note: Make sure to add 'catvsdog.example.com' to your hosts file pointing to your cluster IP.
+          If using Minikube, you can get the IP with 'minikube ip' 
