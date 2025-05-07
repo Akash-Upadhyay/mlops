@@ -8,48 +8,75 @@
     backend_image: "{{ lookup('env', 'BACKEND_IMAGE') | default('catvsdog-backend:latest', true) }}"
     frontend_image: "{{ lookup('env', 'FRONTEND_IMAGE') | default('catvsdog-frontend:latest', true) }}"
     kubeconfig: "{{ lookup('env', 'KUBECONFIG') | default('~/.kube/config', true) }}"
-    kubectl_opts: "--validate=false"
+    kubectl_opts: "--validate=false --insecure-skip-tls-verify"
   
   tasks:
-    - name: Verify Kubernetes connection
-      shell: kubectl get nodes --kubeconfig={{ kubeconfig }}
+    - name: Display configuration
+      debug:
+        msg: 
+          - "Backend image: {{ backend_image }}"
+          - "Frontend image: {{ frontend_image }}"
+          - "Using kubeconfig: {{ kubeconfig }}"
+
+    - name: Ensure Docker is running
+      command: docker info
+      register: docker_info
+      ignore_errors: yes
+      
+    - name: Display Docker status
+      debug:
+        msg: "Docker is {{ 'running' if docker_info.rc == 0 else 'not available' }}"
+      
+    - name: Setup lightweight K3d Kubernetes if needed
+      when: docker_info.rc == 0
+      block:
+        - name: Check if k3d is installed
+          command: which k3d
+          register: k3d_check
+          ignore_errors: yes
+          
+        - name: Install k3d if not available
+          when: k3d_check.rc != 0
+          shell: |
+            curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+          ignore_errors: yes
+          
+        - name: Check if k3d cluster exists
+          shell: k3d cluster list | grep k3s-default
+          register: k3d_cluster
+          ignore_errors: yes
+          
+        - name: Create k3d cluster if not exists
+          when: k3d_cluster.rc != 0
+          shell: k3d cluster create --wait
+          ignore_errors: yes
+          
+        - name: Get k3d kubeconfig
+          shell: k3d kubeconfig get k3s-default > {{ kubeconfig }}
+          ignore_errors: yes
+          
+    - name: Try kubectl with available config
+      shell: kubectl --kubeconfig={{ kubeconfig }} get nodes --request-timeout=5s
       register: kubectl_test
       ignore_errors: yes
       
     - name: Display Kubernetes connection status
       debug:
-        msg: "Kubernetes connection test result: {{ kubectl_test.rc == 0 }}"
+        msg: "Kubernetes connection test result: {{ 'Success' if kubectl_test.rc == 0 else 'Failed' }}"
         
-    - name: Check if minikube is running
-      when: kubectl_test.rc != 0
-      shell: minikube status | grep Running
-      register: minikube_status
-      ignore_errors: yes
-      
-    - name: Start minikube if not running
-      when: kubectl_test.rc != 0 and minikube_status.rc != 0
-      shell: minikube start
-      register: minikube_start
-      ignore_errors: yes
-      
-    - name: Update kubeconfig with minikube context
-      when: minikube_start.changed
-      shell: |
-        mkdir -p $(dirname {{ kubeconfig }})
-        minikube update-context
-        kubectl config view --flatten > {{ kubeconfig }}
-      ignore_errors: yes
-        
-    - name: Create namespace if it doesn't exist
-      shell: kubectl --kubeconfig={{ kubeconfig }} {{ kubectl_opts }} get namespace catvsdog || kubectl --kubeconfig={{ kubeconfig }} create namespace catvsdog
+    - name: Create namespace if kubectl works
+      when: kubectl_test.rc == 0
+      shell: kubectl --kubeconfig={{ kubeconfig }} {{ kubectl_opts }} create namespace catvsdog
       register: namespace_result
       ignore_errors: yes
-      
+        
     - name: Display namespace creation result
+      when: kubectl_test.rc == 0
       debug:
-        msg: "Namespace creation result: {{ namespace_result.stdout }}"
+        msg: "Namespace creation result: {{ namespace_result.stdout | default('Already exists') }}"
       
     - name: Apply backend deployment
+      when: kubectl_test.rc == 0
       shell: |
         cat <<EOF | kubectl --kubeconfig={{ kubeconfig }} {{ kubectl_opts }} apply -f -
         apiVersion: apps/v1
@@ -77,10 +104,12 @@
       ignore_errors: yes
     
     - name: Display backend deployment result
+      when: kubectl_test.rc == 0
       debug:
         msg: "Backend deployment status: {{ 'Success' if backend_deployment.rc == 0 else 'Failed' }}"
         
     - name: Apply backend service
+      when: kubectl_test.rc == 0
       shell: |
         cat <<EOF | kubectl --kubeconfig={{ kubeconfig }} {{ kubectl_opts }} apply -f -
         apiVersion: v1
@@ -100,6 +129,7 @@
       ignore_errors: yes
       
     - name: Apply frontend deployment
+      when: kubectl_test.rc == 0
       shell: |
         cat <<EOF | kubectl --kubeconfig={{ kubeconfig }} {{ kubectl_opts }} apply -f -
         apiVersion: apps/v1
@@ -127,10 +157,12 @@
       ignore_errors: yes
       
     - name: Display frontend deployment result
+      when: kubectl_test.rc == 0
       debug:
         msg: "Frontend deployment status: {{ 'Success' if frontend_deployment.rc == 0 else 'Failed' }}"
     
     - name: Apply frontend service
+      when: kubectl_test.rc == 0
       shell: |
         cat <<EOF | kubectl --kubeconfig={{ kubeconfig }} {{ kubectl_opts }} apply -f -
         apiVersion: v1
@@ -150,6 +182,7 @@
       ignore_errors: yes
     
     - name: Apply ingress
+      when: kubectl_test.rc == 0
       shell: |
         cat <<EOF | kubectl --kubeconfig={{ kubeconfig }} {{ kubectl_opts }} apply -f -
         apiVersion: networking.k8s.io/v1
@@ -189,44 +222,53 @@
       register: ingress_result
       ignore_errors: yes
       
-    - name: Display ingress deployment result
-      debug:
-        msg: "Ingress deployment status: {{ 'Success' if ingress_result.rc == 0 else 'Failed' }}"
+    - name: Fall back to Docker-only deployment if Kubernetes not available
+      when: kubectl_test.rc != 0
+      block:
+        - name: Display fallback message
+          debug:
+            msg: "Kubernetes not available. Falling back to Docker-only deployment."
+            
+        - name: Create Docker network if it doesn't exist
+          shell: docker network inspect catvsdog || docker network create catvsdog
+          ignore_errors: yes
+          
+        - name: Start backend container
+          shell: |
+            docker stop backend || true
+            docker rm backend || true
+            docker run -d --name backend --network catvsdog -p 8000:8000 {{ backend_image }}
+          ignore_errors: yes
+          
+        - name: Start frontend container
+          shell: |
+            docker stop frontend || true
+            docker rm frontend || true
+            docker run -d --name frontend --network catvsdog -p 8080:80 -e REACT_APP_API_URL=http://localhost:8000 {{ frontend_image }}
+          ignore_errors: yes
+          
+        - name: Get container status
+          shell: docker ps
+          register: docker_ps
+          ignore_errors: yes
+          
+        - name: Display container status
+          debug:
+            msg: "{{ docker_ps.stdout_lines }}"
     
-    - name: Get service information
-      shell: kubectl --kubeconfig={{ kubeconfig }} get svc -n catvsdog
-      register: svc_info
-      ignore_errors: yes
-      
-    - name: Display service information
-      debug:
-        msg: "{{ svc_info.stdout_lines }}"
-        
-    - name: Get ingress information
-      shell: kubectl --kubeconfig={{ kubeconfig }} get ing -n catvsdog
-      register: ing_info
-      ignore_errors: yes
-      
-    - name: Display ingress information
-      debug:
-        msg: "{{ ing_info.stdout_lines }}"
-        
-    - name: Add host entry for local testing
-      become: yes
-      become_method: sudo
-      ignore_errors: yes
-      shell: |
-        if ! grep -q "catvsdog.example.com" /etc/hosts; then
-          echo "127.0.0.1 catvsdog.example.com" >> /etc/hosts
-        fi
-      
     - name: Provide access information
       debug:
         msg: |
-          Deployment completed. Access your application at:
+          Deployment completed.
           
-          Frontend: http://catvsdog.example.com/frontend
-          Backend API: http://catvsdog.example.com/backend
+          {% if kubectl_test.rc == 0 %}
+          Kubernetes deployment:
+          Frontend: http://catvsdog.example.com/frontend (requires DNS or hosts file entry)
+          Backend API: http://catvsdog.example.com/backend (requires DNS or hosts file entry)
           
           Note: Make sure to add 'catvsdog.example.com' to your hosts file pointing to your cluster IP.
-          If using Minikube, you can get the IP with 'minikube ip' 
+          {% else %}
+          Docker-only deployment:
+          Frontend: http://localhost:8080
+          Backend API: http://localhost:8000
+          {% endif %} 

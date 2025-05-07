@@ -532,28 +532,14 @@ pipeline {
                     mkdir -p ${WORKSPACE}/.kube
                     mkdir -p ${WORKSPACE}/k8s
                     
-                    # Configure kubectl to use the local cluster
-                    if command -v minikube &> /dev/null; then
-                        echo "Minikube detected, getting kubectl config..."
-                        minikube update-context || true
-                        mkdir -p ~/.kube
-                        cp -f $(minikube config view -o jsonpath='{.kubeconfig}') ${WORKSPACE}/.kube/config 2>/dev/null || true
-                    fi
+                    # Instead of using minikube directly, create a simple kubeconfig
+                    # This avoids SSH authentication issues with minikube
+                    echo "Creating basic kubeconfig file..."
+                    # Get IP address from network interfaces or use localhost if not available
+                    NODE_IP=$(hostname -I | awk '{print $1}' || echo "127.0.0.1")
+                    API_SERVER="https://${NODE_IP}:8443"  # Minikube typically uses 8443
                     
-                    # As a fallback, see if we can get the current cluster config
-                    if [ ! -f ${WORKSPACE}/.kube/config ]; then
-                        echo "No minikube config found, trying to get current kubectl config..."
-                        kubectl config view --flatten > ${WORKSPACE}/.kube/config
-                    fi
-                    
-                    # If we still don't have a config, create a minimal one for applying with validation disabled
-                    if [ ! -s ${WORKSPACE}/.kube/config ]; then
-                        echo "Creating minimal kubeconfig file..."
-                        # Get node IP by checking network interfaces
-                        NODE_IP=$(hostname -I | awk '{print $1}')
-                        API_SERVER="https://${NODE_IP}:6443"
-                        
-                        cat > ${WORKSPACE}/.kube/config << EOF
+                    cat > ${WORKSPACE}/.kube/config << EOF
 apiVersion: v1
 kind: Config
 clusters:
@@ -564,14 +550,19 @@ clusters:
 contexts:
 - context:
     cluster: jenkins-cluster
+    namespace: default
     user: jenkins-user
   name: jenkins-context
 current-context: jenkins-context
 users:
 - name: jenkins-user
-  user: {}
+  user:
+    client-certificate: 
+    client-key: 
 EOF
-                    fi
+                    
+                    # Set proper permissions on kubeconfig
+                    chmod 600 ${WORKSPACE}/.kube/config
                     
                     # Create inventory file for local deployment
                     echo "[local]
@@ -579,9 +570,11 @@ localhost ansible_connection=local" > inventory.ini
                     
                     # Set environment variables for Ansible to use
                     export KUBECONFIG=${WORKSPACE}/.kube/config
+                    export BACKEND_IMAGE=${BACKEND_IMAGE}
+                    export FRONTEND_IMAGE=${FRONTEND_IMAGE}
                     
-                    # Run the Ansible playbook
-                    ansible-playbook -i inventory.ini k8s-ansible-playbook.yml -v
+                    # Run the Ansible playbook with debug flags
+                    ansible-playbook -i inventory.ini k8s-ansible-playbook.yml -vvv
                 '''
                 echo "Deployment completed via Ansible playbook."
             }
