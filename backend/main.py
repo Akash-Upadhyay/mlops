@@ -23,10 +23,15 @@ app = FastAPI(title="Cat vs Dog Classifier API")
 # Set up CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Allow React dev server
+    allow_origins=[
+        "http://localhost:3000",         # Development server
+        "http://localhost:30080",        # NodePort access
+        "http://catvsdog.example.com",   # Production domain
+        "http://catvsdogclasifier.com"   # Alternative production domain
+    ],
     allow_credentials=True,
-    allow_methods=["*"],  # Allow all methods
-    allow_headers=["*"],  # Allow all headers
+    allow_methods=["*"],     # Allow all methods
+    allow_headers=["*"],     # Allow all headers
 )
 
 # Load the model on startup
