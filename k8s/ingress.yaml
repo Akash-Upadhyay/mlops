@@ -4,6 +4,7 @@ metadata:
   name: catvsdog-ingress
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/add-base-url: "/frontend"  # This rewrites /frontend to /
 spec:
   rules:
   - host: "catvsdog.example.com"
