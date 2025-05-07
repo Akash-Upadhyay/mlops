@@ -3,15 +3,14 @@ kind: Ingress
 metadata:
   name: catvsdog-ingress
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-    nginx.ingress.kubernetes.io/add-base-url: "/frontend"  # This rewrites /frontend to /
+    nginx.ingress.kubernetes.io/use-regex: "true"
 spec:
   rules:
   - host: "catvsdog.example.com"
     http:
       paths:
-      - path: /frontend
-        pathType: Prefix
+      - path: /frontend(/|$)(.*)
+        pathType: ImplementationSpecific
         backend:
           service:
             name: catvsdog-frontend-service

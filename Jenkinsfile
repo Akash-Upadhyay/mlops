@@ -493,7 +493,7 @@ pipeline {
             steps {
                 script {
                     // Build the frontend image with the localhost and NodePort for backend service
-                    sh "docker build -t ${FRONTEND_IMAGE} --build-arg REACT_APP_API_URL=http://localhost:30800 -f frontend/Dockerfile frontend/"
+                    sh "docker build -t ${FRONTEND_IMAGE} --build-arg REACT_APP_API_URL=REACT_APP_API_URL=http://catvsdog.example.com/backend -f frontend/Dockerfile.k8s frontend/"
                 }
                 echo "Building Frontend Docker Image for Kubernetes deployment with NodePort access..."
             }
