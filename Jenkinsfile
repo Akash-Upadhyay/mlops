@@ -154,10 +154,10 @@
 //         stage('Build Frontend Docker Image') {
 //             steps {
 //                 script {
-//                     // Build the frontend image with the correct API URL for Kubernetes deployment
-//                     sh "docker build -t ${FRONTEND_IMAGE} --build-arg REACT_APP_API_URL=http://catvsdogclasifier.com/backend -f frontend/Dockerfile.k8s frontend/"
+//                     // Build the frontend image with the localhost and NodePort for backend service
+//                     sh "docker build -t ${FRONTEND_IMAGE} --build-arg REACT_APP_API_URL=http://localhost:30800 -f frontend/Dockerfile frontend/"
 //                 }
-//                 echo "Building Frontend Docker Image for Kubernetes deployment..."
+//                 echo "Building Frontend Docker Image for Kubernetes deployment with NodePort access..."
 //             }
 //         }
 
@@ -492,10 +492,10 @@ pipeline {
         stage('Build Frontend Docker Image') {
             steps {
                 script {
-                    // Build the frontend image with the correct API URL for Kubernetes deployment
-                    sh "docker build -t ${FRONTEND_IMAGE} --build-arg REACT_APP_API_URL=http://catvsdogclasifier.com/backend -f frontend/Dockerfile.k8s frontend/"
+                    // Build the frontend image with the localhost and NodePort for backend service
+                    sh "docker build -t ${FRONTEND_IMAGE} --build-arg REACT_APP_API_URL=REACT_APP_API_URL=http://catvsdog.example.com/backend -f frontend/Dockerfile.k8s frontend/"
                 }
-                echo "Building Frontend Docker Image for Kubernetes deployment..."
+                echo "Building Frontend Docker Image for Kubernetes deployment with NodePort access..."
             }
         }
 
@@ -508,75 +508,160 @@ pipeline {
             }
         }
         
-        stage('Install Ansible (if needed)') {
-            steps {
-                sh '''
-                    # Check if Ansible is installed
-                    if ! command -v ansible &> /dev/null; then
-                        echo "Installing Ansible..."
-                        pip install ansible
-                    else
-                        echo "Ansible is already installed"
-                    fi
-                '''
-            }
-        }
-        
-        stage('Deploy to Kubernetes with Ansible') {
+        stage('Deploy to Kubernetes') {
             steps {
                 sh '''
                     # Ensure kubectl is installed
                     which kubectl || { echo "kubectl not found, installing..."; apt-get update && apt-get install -y kubectl; }
                     
-                    # Create required directories
-                    mkdir -p ${WORKSPACE}/.kube
-                    mkdir -p ${WORKSPACE}/k8s
+                    # Create k8s directory if it doesn't exist
+                    mkdir -p k8s
                     
-                    # Instead of using minikube directly, create a simple kubeconfig
-                    # This avoids SSH authentication issues with minikube
-                    echo "Creating basic kubeconfig file..."
-                    # Get IP address from network interfaces or use localhost if not available
-                    NODE_IP=$(hostname -I | awk '{print $1}' || echo "127.0.0.1")
-                    API_SERVER="https://${NODE_IP}:8443"  # Minikube typically uses 8443
-                    
-                    cat > ${WORKSPACE}/.kube/config << EOF
+                    # Create or overwrite the backend deployment file
+                    cat > k8s/backend-deployment.yaml << 'EOF'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catvsdog-backend
+  labels:
+    app: catvsdog
+    tier: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: catvsdog
+      tier: backend
+  template:
+    metadata:
+      labels:
+        app: catvsdog
+        tier: backend
+    spec:
+      containers:
+      - name: backend
+        image: mt2024013/catvsdog:latest
+        ports:
+        - containerPort: 8000
+        resources:
+          limits:
+            cpu: "1"
+            memory: "1Gi"
+          requests:
+            cpu: "500m"
+            memory: "512Mi"
+        readinessProbe:
+          httpGet:
+            path: /metrics/
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+---
 apiVersion: v1
-kind: Config
-clusters:
-- cluster:
-    insecure-skip-tls-verify: true
-    server: ${API_SERVER}
-  name: jenkins-cluster
-contexts:
-- context:
-    cluster: jenkins-cluster
-    namespace: default
-    user: jenkins-user
-  name: jenkins-context
-current-context: jenkins-context
-users:
-- name: jenkins-user
-  user:
-    client-certificate: 
-    client-key: 
+kind: Service
+metadata:
+  name: catvsdog-backend-service
+  labels:
+    app: catvsdog
+    tier: backend
+spec:
+  selector:
+    app: catvsdog
+    tier: backend
+  ports:
+  - port: 8000
+    targetPort: 8000
+    nodePort: 30800
+  type: NodePort
 EOF
+
+                    # Create or overwrite the frontend deployment file
+                    cat > k8s/frontend-deployment.yaml << 'EOF'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catvsdog-frontend
+  labels:
+    app: catvsdog
+    tier: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: catvsdog
+      tier: frontend
+  template:
+    metadata:
+      labels:
+        app: catvsdog
+        tier: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: mt2024013/catvsdog-frontend:latest
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "200m"
+            memory: "256Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: catvsdog-frontend-service
+  labels:
+    app: catvsdog
+    tier: frontend
+spec:
+  selector:
+    app: catvsdog
+    tier: frontend
+  ports:
+  - port: 80
+    targetPort: 80
+  type: NodePort
+EOF
+
+                    # Create or overwrite the ingress resource file
+                    cat > k8s/ingress.yaml << 'EOF'
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: catvsdog-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: catvsdog.k8s.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: catvsdog-frontend-service
+            port:
+              number: 80
+EOF
+
+                    # Apply Kubernetes resources
+                    kubectl apply -f k8s/backend-deployment.yaml
+                    kubectl apply -f k8s/frontend-deployment.yaml
+                    kubectl apply -f k8s/ingress.yaml
                     
-                    # Set proper permissions on kubeconfig
-                    chmod 600 ${WORKSPACE}/.kube/config
+                    # Wait for deployments to be ready
+                    echo "Waiting for deployments to be ready..."
+                    kubectl rollout status deployment/catvsdog-backend
+                    kubectl rollout status deployment/catvsdog-frontend
                     
-                    # Create inventory file for local deployment
-                    echo "[local]
-localhost ansible_connection=local" > inventory.ini
-                    
-                    # Set environment variables for Ansible to use
-                    export KUBECONFIG=${WORKSPACE}/.kube/config
-                    export BACKEND_IMAGE=${BACKEND_IMAGE}
-                    export FRONTEND_IMAGE=${FRONTEND_IMAGE}
-                    
-                    # Run the Ansible playbook with debug flags
-                    ansible-playbook -i inventory.ini k8s-ansible-playbook.yml -vvv
+                    # Get the frontend service NodePort and display it
+                    FRONTEND_PORT=$(kubectl get service catvsdog-frontend-service -o=jsonpath='{.spec.ports[0].nodePort}')
+                    echo "Frontend application is accessible at http://localhost:$FRONTEND_PORT"
                 '''
-                echo "Deployment completed via Ansible playbook."
             }
         }
     }

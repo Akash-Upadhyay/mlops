@@ -23,15 +23,10 @@ app = FastAPI(title="Cat vs Dog Classifier API")
 # Set up CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",         # Development server
-        "http://localhost:30080",        # NodePort access
-        "http://catvsdog.example.com",   # Production domain
-        "http://catvsdogclasifier.com"   # Alternative production domain
-    ],
+    allow_origins=["http://localhost:3000"],  # Allow React dev server
     allow_credentials=True,
-    allow_methods=["*"],     # Allow all methods
-    allow_headers=["*"],     # Allow all headers
+    allow_methods=["*"],  # Allow all methods
+    allow_headers=["*"],  # Allow all headers
 )
 
 # Load the model on startup
@@ -119,8 +114,18 @@ async def predict(file: UploadFile = File(...)):
         
         # Read and preprocess the image
         contents = await file.read()
-        image = Image.open(io.BytesIO(contents)).convert("RGB")
-        processed_image = preprocess_image(image)
+        try:
+            # Try to open the image with PIL, with better error handling
+            image = Image.open(io.BytesIO(contents))
+            # Convert to RGB to ensure compatibility (handles PNG, RGBA, etc.)
+            if image.mode != "RGB":
+                image = image.convert("RGB")
+            processed_image = preprocess_image(image)
+        except Exception as img_error:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Error processing image: {str(img_error)}. Make sure the file is a valid image."
+            )
         
         # Make prediction
         prediction = model.predict(processed_image)[0][0]

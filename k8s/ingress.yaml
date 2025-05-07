@@ -5,6 +5,7 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/use-regex: "true"
     nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
 spec:
   rules:
   - host: "catvsdog.example.com"
@@ -24,9 +25,23 @@ spec:
             name: catvsdog-backend-service
             port:
               number: 8000
+      - path: /(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: catvsdog-frontend-service
+            port:
+              number: 80
   - host: "catvsdogclasifier.com"
     http:
       paths:
+      - path: /frontend(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: catvsdog-frontend-service
+            port:
+              number: 80
       - path: /backend(/|$)(.*)
         pathType: ImplementationSpecific
         backend:
@@ -34,3 +49,10 @@ spec:
             name: catvsdog-backend-service
             port:
               number: 8000
+      - path: /(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: catvsdog-frontend-service
+            port:
+              number: 80

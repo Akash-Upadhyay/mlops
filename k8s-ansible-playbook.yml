@@ -1,274 +1,71 @@
----
-- name: Deploy Application to Kubernetes
-  hosts: localhost
-  connection: local
-  gather_facts: yes
-  
-  vars:
-    backend_image: "{{ lookup('env', 'BACKEND_IMAGE') | default('catvsdog-backend:latest', true) }}"
-    frontend_image: "{{ lookup('env', 'FRONTEND_IMAGE') | default('catvsdog-frontend:latest', true) }}"
-    kubeconfig: "{{ lookup('env', 'KUBECONFIG') | default('~/.kube/config', true) }}"
-    kubectl_opts: "--validate=false --insecure-skip-tls-verify"
-  
+- name: Deploy ML Application to Kubernetes
+  hosts: local
+  become: false
   tasks:
-    - name: Display configuration
-      debug:
-        msg: 
-          - "Backend image: {{ backend_image }}"
-          - "Frontend image: {{ frontend_image }}"
-          - "Using kubeconfig: {{ kubeconfig }}"
+    - name: Check if kubectl is installed
+      command: which kubectl
+      register: kubectl_check
+      ignore_errors: true
+      changed_when: false
 
-    - name: Ensure Docker is running
-      command: docker info
-      register: docker_info
-      ignore_errors: yes
-      
-    - name: Display Docker status
+    - name: Fail if kubectl is not installed
+      fail:
+        msg: "kubectl is not installed. Please install kubectl first."
+      when: kubectl_check.rc != 0
+
+    - name: Create k8s directory if it doesn't exist
+      file:
+        path: "{{ playbook_dir }}/k8s"
+        state: directory
+        mode: '0755'
+
+    # Apply backend deployment and service
+    - name: Apply backend deployment and service
+      command: kubectl apply -f {{ playbook_dir }}/k8s/backend-deployment.yaml
+      register: backend_apply
+      changed_when: backend_apply.rc == 0
+
+    # Wait for backend deployment to be ready
+    - name: Wait for backend deployment to be ready
+      command: kubectl rollout status deployment/catvsdog-backend
+      register: backend_status
+      changed_when: false
+
+    # Build a frontend image with the backend service URL
+    - name: Build the frontend Docker image with the service name
+      command: >
+        docker build 
+        -t mt2024013/catvsdog-frontend:latest 
+        --build-arg REACT_APP_API_URL=http://catvsdog-backend-service:8000 
+        {{ playbook_dir }}/frontend/
+      register: frontend_build
+      changed_when: frontend_build.rc == 0
+
+    # Push the frontend image to Docker Hub (optional)
+    - name: Push frontend image to Docker Hub
+      command: docker push mt2024013/catvsdog-frontend:latest
+      register: frontend_push
+      changed_when: frontend_push.rc == 0
+      ignore_errors: true
+
+    # Apply frontend deployment and service
+    - name: Apply frontend deployment and service
+      command: kubectl apply -f {{ playbook_dir }}/k8s/frontend-deployment.yaml
+      register: frontend_apply
+      changed_when: frontend_apply.rc == 0
+
+    # Wait for frontend deployment to be ready
+    - name: Wait for frontend deployment to be ready
+      command: kubectl rollout status deployment/catvsdog-frontend
+      register: frontend_status
+      changed_when: false
+
+    # Get service information
+    - name: Get frontend service NodePort
+      command: kubectl get service catvsdog-frontend-service -o=jsonpath='{.spec.ports[0].nodePort}'
+      register: frontend_port
+      changed_when: false
+
+    - name: Display access information
       debug:
-        msg: "Docker is {{ 'running' if docker_info.rc == 0 else 'not available' }}"
-      
-    - name: Setup lightweight K3d Kubernetes if needed
-      when: docker_info.rc == 0
-      block:
-        - name: Check if k3d is installed
-          command: which k3d
-          register: k3d_check
-          ignore_errors: yes
-          
-        - name: Install k3d if not available
-          when: k3d_check.rc != 0
-          shell: |
-            curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
-          ignore_errors: yes
-          
-        - name: Check if k3d cluster exists
-          shell: k3d cluster list | grep k3s-default
-          register: k3d_cluster
-          ignore_errors: yes
-          
-        - name: Create k3d cluster if not exists
-          when: k3d_cluster.rc != 0
-          shell: k3d cluster create --wait
-          ignore_errors: yes
-          
-        - name: Get k3d kubeconfig
-          shell: k3d kubeconfig get k3s-default > {{ kubeconfig }}
-          ignore_errors: yes
-          
-    - name: Try kubectl with available config
-      shell: kubectl --kubeconfig={{ kubeconfig }} get nodes --request-timeout=5s
-      register: kubectl_test
-      ignore_errors: yes
-      
-    - name: Display Kubernetes connection status
-      debug:
-        msg: "Kubernetes connection test result: {{ 'Success' if kubectl_test.rc == 0 else 'Failed' }}"
-        
-    - name: Create namespace if kubectl works
-      when: kubectl_test.rc == 0
-      shell: kubectl --kubeconfig={{ kubeconfig }} {{ kubectl_opts }} create namespace catvsdog
-      register: namespace_result
-      ignore_errors: yes
-        
-    - name: Display namespace creation result
-      when: kubectl_test.rc == 0
-      debug:
-        msg: "Namespace creation result: {{ namespace_result.stdout | default('Already exists') }}"
-      
-    - name: Apply backend deployment
-      when: kubectl_test.rc == 0
-      shell: |
-        cat <<EOF | kubectl --kubeconfig={{ kubeconfig }} {{ kubectl_opts }} apply -f -
-        apiVersion: apps/v1
-        kind: Deployment
-        metadata:
-          name: backend-deployment
-          namespace: catvsdog
-        spec:
-          replicas: 1
-          selector:
-            matchLabels:
-              app: backend
-          template:
-            metadata:
-              labels:
-                app: backend
-            spec:
-              containers:
-              - name: backend
-                image: {{ backend_image }}
-                ports:
-                - containerPort: 8000
-        EOF
-      register: backend_deployment
-      ignore_errors: yes
-    
-    - name: Display backend deployment result
-      when: kubectl_test.rc == 0
-      debug:
-        msg: "Backend deployment status: {{ 'Success' if backend_deployment.rc == 0 else 'Failed' }}"
-        
-    - name: Apply backend service
-      when: kubectl_test.rc == 0
-      shell: |
-        cat <<EOF | kubectl --kubeconfig={{ kubeconfig }} {{ kubectl_opts }} apply -f -
-        apiVersion: v1
-        kind: Service
-        metadata:
-          name: backend-service
-          namespace: catvsdog
-        spec:
-          selector:
-            app: backend
-          ports:
-          - port: 8000
-            targetPort: 8000
-          type: ClusterIP
-        EOF
-      register: backend_service
-      ignore_errors: yes
-      
-    - name: Apply frontend deployment
-      when: kubectl_test.rc == 0
-      shell: |
-        cat <<EOF | kubectl --kubeconfig={{ kubeconfig }} {{ kubectl_opts }} apply -f -
-        apiVersion: apps/v1
-        kind: Deployment
-        metadata:
-          name: frontend-deployment
-          namespace: catvsdog
-        spec:
-          replicas: 1
-          selector:
-            matchLabels:
-              app: frontend
-          template:
-            metadata:
-              labels:
-                app: frontend
-            spec:
-              containers:
-              - name: frontend
-                image: {{ frontend_image }}
-                ports:
-                - containerPort: 80
-        EOF
-      register: frontend_deployment
-      ignore_errors: yes
-      
-    - name: Display frontend deployment result
-      when: kubectl_test.rc == 0
-      debug:
-        msg: "Frontend deployment status: {{ 'Success' if frontend_deployment.rc == 0 else 'Failed' }}"
-    
-    - name: Apply frontend service
-      when: kubectl_test.rc == 0
-      shell: |
-        cat <<EOF | kubectl --kubeconfig={{ kubeconfig }} {{ kubectl_opts }} apply -f -
-        apiVersion: v1
-        kind: Service
-        metadata:
-          name: frontend-service
-          namespace: catvsdog
-        spec:
-          selector:
-            app: frontend
-          ports:
-          - port: 80
-            targetPort: 80
-          type: ClusterIP
-        EOF
-      register: frontend_service
-      ignore_errors: yes
-    
-    - name: Apply ingress
-      when: kubectl_test.rc == 0
-      shell: |
-        cat <<EOF | kubectl --kubeconfig={{ kubeconfig }} {{ kubectl_opts }} apply -f -
-        apiVersion: networking.k8s.io/v1
-        kind: Ingress
-        metadata:
-          name: catvsdog-ingress
-          namespace: catvsdog
-          annotations:
-            nginx.ingress.kubernetes.io/rewrite-target: /\$2
-        spec:
-          rules:
-          - host: catvsdog.example.com
-            http:
-              paths:
-              - path: /backend(/|$)(.*)
-                pathType: Prefix
-                backend:
-                  service:
-                    name: backend-service
-                    port:
-                      number: 8000
-              - path: /frontend(/|$)(.*)
-                pathType: Prefix
-                backend:
-                  service:
-                    name: frontend-service
-                    port:
-                      number: 80
-              - path: /
-                pathType: Prefix
-                backend:
-                  service:
-                    name: frontend-service
-                    port:
-                      number: 80
-        EOF
-      register: ingress_result
-      ignore_errors: yes
-      
-    - name: Fall back to Docker-only deployment if Kubernetes not available
-      when: kubectl_test.rc != 0
-      block:
-        - name: Display fallback message
-          debug:
-            msg: "Kubernetes not available. Falling back to Docker-only deployment."
-            
-        - name: Create Docker network if it doesn't exist
-          shell: docker network inspect catvsdog || docker network create catvsdog
-          ignore_errors: yes
-          
-        - name: Start backend container
-          shell: |
-            docker stop backend || true
-            docker rm backend || true
-            docker run -d --name backend --network catvsdog -p 8000:8000 {{ backend_image }}
-          ignore_errors: yes
-          
-        - name: Start frontend container
-          shell: |
-            docker stop frontend || true
-            docker rm frontend || true
-            docker run -d --name frontend --network catvsdog -p 8080:80 -e REACT_APP_API_URL=http://localhost:8000 {{ frontend_image }}
-          ignore_errors: yes
-          
-        - name: Get container status
-          shell: docker ps
-          register: docker_ps
-          ignore_errors: yes
-          
-        - name: Display container status
-          debug:
-            msg: "{{ docker_ps.stdout_lines }}"
-    
-    - name: Provide access information
-      debug:
-        msg: |
-          Deployment completed.
-          
-          {% if kubectl_test.rc == 0 %}
-          Kubernetes deployment:
-          Frontend: http://catvsdog.example.com/frontend (requires DNS or hosts file entry)
-          Backend API: http://catvsdog.example.com/backend (requires DNS or hosts file entry)
-          
-          Note: Make sure to add 'catvsdog.example.com' to your hosts file pointing to your cluster IP.
-          {% else %}
-          Docker-only deployment:
-          Frontend: http://localhost:8080
-          Backend API: http://localhost:8000
-          {% endif %} 
+        msg: "Application deployed successfully. Frontend is accessible at http://localhost:{{ frontend_port.stdout }}" 

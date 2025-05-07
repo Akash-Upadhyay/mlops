@@ -56,16 +56,23 @@ FROM python:3.12-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies including those required for Pillow
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    gcc \
+    python3-dev \
+    libjpeg-dev \
+    zlib1g-dev \
+    libpng-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy and install Python dependencies
 COPY requirements-serve.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements-serve.txt
+    pip install --no-cache-dir -r requirements-serve.txt && \
+    # Make sure Pillow is installed with all features
+    pip install --no-cache-dir --force-reinstall pillow==11.2.1
 
 # Create necessary directories
 RUN mkdir -p /app/ml_part/checkpoints
