@@ -1,32 +1,16 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: catvsdog-ingress
+  name: frontend-ingress
   annotations:
-    nginx.ingress.kubernetes.io/use-regex: "true"
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
 spec:
   rules:
   - host: "catvsdog.example.com"
     http:
       paths:
-      - path: /frontend(/|$)(.*)
-        pathType: ImplementationSpecific
-        backend:
-          service:
-            name: catvsdog-frontend-service
-            port:
-              number: 80
-      - path: /backend(/|$)(.*)
-        pathType: ImplementationSpecific
-        backend:
-          service:
-            name: catvsdog-backend-service
-            port:
-              number: 8000
-      - path: /(.*)
-        pathType: ImplementationSpecific
+      - path: /
+        pathType: Prefix
         backend:
           service:
             name: catvsdog-frontend-service
@@ -35,13 +19,26 @@ spec:
   - host: "catvsdogclasifier.com"
     http:
       paths:
-      - path: /frontend(/|$)(.*)
-        pathType: ImplementationSpecific
+      - path: /
+        pathType: Prefix
         backend:
           service:
             name: catvsdog-frontend-service
             port:
               number: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: backend-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  rules:
+  - host: "catvsdog.example.com"
+    http:
+      paths:
       - path: /backend(/|$)(.*)
         pathType: ImplementationSpecific
         backend:
@@ -49,10 +46,13 @@ spec:
             name: catvsdog-backend-service
             port:
               number: 8000
-      - path: /(.*)
+  - host: "catvsdogclasifier.com"
+    http:
+      paths:
+      - path: /backend(/|$)(.*)
         pathType: ImplementationSpecific
         backend:
           service:
-            name: catvsdog-frontend-service
+            name: catvsdog-backend-service
             port:
-              number: 80
+              number: 8000

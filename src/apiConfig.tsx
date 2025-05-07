@@ -1,5 +1,5 @@
-// API URL configuration for Kubernetes with external IP and NodePort
-export const API_BASE_URL = 'http://192.168.49.2:30800';
+// API URL configuration for local Docker development
+export const API_BASE_URL = 'http://localhost:8000';  // Hard-coded to ensure it works
 
 // Helper function to get the full API URL
 export const getApiUrl = (endpoint: string): string => {

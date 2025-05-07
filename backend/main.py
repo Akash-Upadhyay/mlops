@@ -23,7 +23,7 @@ app = FastAPI(title="Cat vs Dog Classifier API")
 # Set up CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Allow React dev server
+    allow_origins=["*"],  # Allow React dev server
     allow_credentials=True,
     allow_methods=["*"],  # Allow all methods
     allow_headers=["*"],  # Allow all headers

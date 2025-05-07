@@ -20,6 +20,7 @@ spec:
       containers:
       - name: frontend
         image: mt2024013/catvsdog-frontend:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 80
         resources:
@@ -44,4 +45,5 @@ spec:
   ports:
   - port: 80
     targetPort: 80
+    nodePort: 31536
   type: NodePort 

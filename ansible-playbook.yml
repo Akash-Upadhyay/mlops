@@ -1,43 +1,87 @@
-- name: Deploy ML Application Containers
+---
+# Ansible Playbook to Deploy Cat vs Dog Classifier to Kubernetes
+- name: Deploy Cat vs Dog Classifier to Kubernetes
   hosts: local
-  become: true
-  become_method: sudo
+  connection: local
+  become: false
+  vars:
+    backend_image: mt2024013/catvsdog:latest
+    frontend_image: mt2024013/catvsdog-frontend:latest
+    namespace: default
+  
   tasks:
-    # Check for existing processes using port 8000
-    - name: Check if port 8000 is in use
-      shell: netstat -tulpn | grep 8000 || true
-      register: port_check
+    - name: Check if Minikube is running
+      shell: "minikube status | grep -q 'host: Running'"
+      register: minikube_status
+      ignore_errors: true
       changed_when: false
+
+    - name: Start Minikube if not running
+      shell: minikube start
+      when: minikube_status.rc != 0
+
+    - name: Pull latest backend image from Docker Hub
+      command: docker pull {{ backend_image }}
+      register: backend_pull
+      changed_when: backend_pull.rc == 0
+
+    - name: Pull latest frontend image from Docker Hub
+      command: docker pull {{ frontend_image }}
+      register: frontend_pull
+      changed_when: frontend_pull.rc == 0
+
+    - name: Load backend image into Minikube
+      command: minikube image load {{ backend_image }}
+      when: backend_pull is success
+
+    - name: Load frontend image into Minikube
+      command: minikube image load {{ frontend_image }}
+      when: frontend_pull is success
+
+    - name: Delete existing frontend deployment if exists
+      command: kubectl delete deployment catvsdog-frontend
       ignore_errors: true
 
-    # Backend Container Tasks
-    - name: Pull Backend Docker Image
-      command: docker pull mt2024013/catvsdog
+    - name: Delete existing backend deployment if exists
+      command: kubectl delete deployment catvsdog-backend
+      ignore_errors: true
 
-    - name: Stop existing backend container
-      command: docker rm -f catvsdog_container
-      ignore_errors: yes
+    - name: Delete existing frontend service if exists
+      command: kubectl delete service catvsdog-frontend-service
+      ignore_errors: true
 
-    - name: Run the Backend Container
-      command: docker run -d --name catvsdog_container -p 8001:8000 mt2024013/catvsdog
-      when: port_check.stdout != ""
+    - name: Delete existing backend service if exists
+      command: kubectl delete service catvsdog-backend-service
+      ignore_errors: true
 
-    - name: Run the Backend Container on original port
-      command: docker run -d --name catvsdog_container -p 8000:8000 mt2024013/catvsdog
-      when: port_check.stdout == ""
-    
-    # Frontend Container Tasks
-    - name: Build Frontend Docker Image (Port 8001)
-      command: docker build -t mt2024013/catvsdog-frontend --build-arg REACT_APP_API_URL=http://localhost:8001 frontend/
-      when: port_check.stdout != ""
+    - name: Apply backend deployment
+      command: kubectl apply -f k8s/backend-deployment.yaml
+      register: backend_deployment
 
-    - name: Build Frontend Docker Image (Port 8000)
-      command: docker build -t mt2024013/catvsdog-frontend --build-arg REACT_APP_API_URL=http://localhost:8000 frontend/
-      when: port_check.stdout == ""
+    - name: Apply frontend deployment
+      command: kubectl apply -f k8s/frontend-deployment.yaml
+      register: frontend_deployment
 
-    - name: Stop existing frontend container
-      command: docker rm -f catvsdog_frontend_container
-      ignore_errors: yes
+    - name: Wait for pods to be ready
+      shell: kubectl wait --for=condition=Ready pod -l app=catvsdog --timeout=120s
+      register: ready_wait
+      ignore_errors: true
 
-    - name: Run the Frontend Container
-      command: docker run -d --name catvsdog_frontend_container -p 3000:80 mt2024013/catvsdog-frontend
+    - name: Get pod status
+      command: kubectl get pods -l app=catvsdog
+      register: pod_status
+
+    - name: Get application URLs
+      shell: |
+        FRONTEND_URL="http://$(minikube ip):$(kubectl get svc catvsdog-frontend-service -o jsonpath='{.spec.ports[0].nodePort}')"
+        BACKEND_URL="http://$(minikube ip):$(kubectl get svc catvsdog-backend-service -o jsonpath='{.spec.ports[0].nodePort}')"
+        echo "Frontend URL: $FRONTEND_URL"
+        echo "Backend URL: $BACKEND_URL"
+      register: app_urls
+
+    - name: Display application status
+      debug:
+        msg: 
+          - "Deployment status:"
+          - "{{ pod_status.stdout_lines }}"
+          - "{{ app_urls.stdout_lines }}"

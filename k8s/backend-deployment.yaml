@@ -20,6 +20,7 @@ spec:
       containers:
       - name: backend
         image: mt2024013/catvsdog:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 8000
         resources:

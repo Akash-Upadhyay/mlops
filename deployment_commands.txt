@@ -1,0 +1,39 @@
+# Cat vs Dog Classifier Deployment Commands
+
+# 1. Delete existing deployments
+kubectl delete deployment catvsdog-frontend
+kubectl delete deployment catvsdog-backend
+
+# 2. Delete existing services
+kubectl delete service catvsdog-frontend-service
+kubectl delete service catvsdog-backend-service
+
+# 3. Build backend Docker image
+cd /home/akash/mlops_project
+docker build -t catvsdog-backend:latest .
+
+# 4. Build frontend Docker image
+cd /home/akash/mlops_project/frontend
+docker build -t catvsdog-frontend:latest .
+
+# 5. Load images into Minikube
+minikube image load catvsdog-backend:latest
+minikube image load catvsdog-frontend:latest
+
+# 6. Apply Kubernetes deployments and services
+cd /home/akash/mlops_project
+kubectl apply -f k8s/backend-deployment.yaml
+kubectl apply -f k8s/frontend-deployment.yaml
+
+# 7. Verify deployment status
+kubectl get pods -l app=catvsdog
+kubectl get services
+
+# 8. Get application URLs
+echo "Frontend URL: http://$(minikube ip):$(kubectl get svc catvsdog-frontend-service -o jsonpath='{.spec.ports[0].nodePort}')"
+echo "Backend URL: http://$(minikube ip):$(kubectl get svc catvsdog-backend-service -o jsonpath='{.spec.ports[0].nodePort}')"
+
+# Note: To use service names instead of external IPs (for internal communication):
+# - Update frontend/src/apiConfig.ts to use http://catvsdog-backend-service:8000
+# - Update frontend/nginx.conf to use proxy_pass http://catvsdog-backend-service:8000/
+# - Rebuild and redeploy the frontend 

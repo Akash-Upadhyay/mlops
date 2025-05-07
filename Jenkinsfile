@@ -508,6 +508,19 @@ pipeline {
             }
         }
         
+        stage('Deploy to Kubernetes with Ansible') {
+            steps {
+                echo 'Deploying to Kubernetes with Ansible...'
+                sh '''
+                    # Install Ansible if not already installed
+                    which ansible-playbook || { echo "ansible-playbook not found, installing..."; apt-get update && apt-get install -y ansible; }
+                    
+                    # Run the Ansible playbook
+                    ansible-playbook -i inventory.ini ansible-playbook.yml
+                '''
+            }
+        }
+        
         stage('Deploy to Kubernetes') {
             steps {
                 sh '''
