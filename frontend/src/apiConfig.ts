@@ -1,5 +1,5 @@
 // API URL configuration for Kubernetes with external IP and NodePort
-export const API_BASE_URL = 'http://192.168.49.2:30800';
+export const API_BASE_URL = 'http://catvsdigclassifier.com/backend';
 
 // Helper function to get the full API URL
 export const getApiUrl = (endpoint: string): string => {

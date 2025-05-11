@@ -116,6 +116,12 @@
     #   register: ready_wait
     #   ignore_errors: true
 
+    - name: Apply ingress
+      command:
+        cmd: kubectl apply --validate=false -f /home/akash/mlops_project/k8s/ingress_new.yaml
+      environment:
+        KUBECONFIG: /home/akash/.kube/config
+
     - name: Wait for pods to be ready
       shell: kubectl wait --for=condition=Ready pod -l app=catvsdog --timeout=120s
       environment:
