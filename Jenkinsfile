@@ -518,7 +518,7 @@ pipeline {
                     # Run the Ansible playbook
                     #ansible-playbook -i inventory.ini ansible-playbook.yml
                     #ansible-playbook -i inventory.ini ansible-playbook.yml
-                    sudo -u akash ansible-playbook -i /home/akash/mlops_project/inventory.ini /home/akash/mlops_project/ansible-playbook.yml
+                    sudo -u akash ansible-playbook -i /home/akash/mlops_project/inventory.ini /home/akash/mlops_project/ansible-playbook.yml --become
                 '''
             }
         }
