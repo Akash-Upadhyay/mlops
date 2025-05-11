@@ -1,9 +1,10 @@
+# Stage 1: Build the React application
 FROM node:18-alpine as build
 
 WORKDIR /app
 
 # Set API URL for Kubernetes environment
-ARG REACT_APP_API_URL=http://catvsdog-backend-service.default.svc.cluster.local:8000
+ARG REACT_APP_API_URL=http://catvsdigclassifier.com/backend
 ENV REACT_APP_API_URL=${REACT_APP_API_URL}
 
 # Copy package.json and package-lock.json
