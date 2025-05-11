@@ -20,6 +20,12 @@
       shell: minikube start
       when: minikube_status.rc != 0
 
+    - name: Set the Minikube context for kubectl
+      command: kubectl config use-context minikube
+      environment:
+        KUBECONFIG: /home/akash/.kube/config
+
+
     - name: Pull latest backend image from Docker Hub
       command: docker pull {{ backend_image }}
       register: backend_pull
