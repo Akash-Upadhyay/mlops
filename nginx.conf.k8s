@@ -24,13 +24,14 @@ server {
     }
 
     # Forward API requests to backend service
-    # Ensure we normalize the URLs and add trailing slashes to match FastAPI's expectations
+    # This is only used for internal redirects, not for frontend JavaScript API calls
     location /api/ {
         # Remove /api prefix and ensure trailing slash
         rewrite ^/api(/.*)$ $1 break;
         rewrite ^/api/?(.*)$ /$1/ break;
         
-        proxy_pass http://catvsdog-backend-service.default.svc.cluster.local:8000/;
+        # Generic proxy to backend - actual API URL is in apiConfig.ts
+        proxy_pass http://backend-service:8000/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';

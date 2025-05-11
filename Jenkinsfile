@@ -492,10 +492,10 @@ pipeline {
         stage('Build Frontend Docker Image') {
             steps {
                 script {
-                    // Build the frontend image with the localhost and NodePort for backend service
-                    // sh "docker build -t ${FRONTEND_IMAGE} --build-arg REACT_APP_API_URL=REACT_APP_API_URL=http://catvsdog.example.com/backend -f frontend/Dockerfile.k8s frontend/"
-                    docker build --no-cache --build-arg REACT_APP_API_URL=http://catvsdigclassifier.com/backend -t mt2024013/catvsdog-frontend:latest -f Dockerfile.k8s .
-                echo "Building Frontend Docker Image for Kubernetes deployment with NodePort access..."
+                    // Build the frontend image without passing API URL - apiConfig.ts handles this
+                    sh "docker build -t ${FRONTEND_IMAGE} -f frontend/Dockerfile.k8s frontend/"
+                }
+                echo "Building Frontend Docker Image for Kubernetes deployment..."
             }
         }
 

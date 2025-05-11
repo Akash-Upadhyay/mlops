@@ -4,7 +4,8 @@ FROM node:18-alpine as build
 WORKDIR /app
 
 # Set API URL for Kubernetes environment
-ARG REACT_APP_API_URL=http://catvsdigclassifier.com/backend
+# We don't set a default value here since apiConfig.ts handles this
+ARG REACT_APP_API_URL=""
 ENV REACT_APP_API_URL=${REACT_APP_API_URL}
 
 # Copy package.json and package-lock.json
@@ -16,8 +17,8 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Add environment variable to .env file
-RUN echo "REACT_APP_API_URL=$REACT_APP_API_URL" > .env
+# No need to set .env with API URL since apiConfig.ts manages this
+RUN echo "# Build configuration" > .env
 RUN cat .env
 
 # Build the app
