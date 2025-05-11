@@ -10,6 +10,13 @@
     namespace: default
   
   tasks:
+    # - name: Set KUBECONFIG environment variable
+    #   # hosts: localhost
+    #   vars:
+    #     kubeconfig_path: "/home/akash/.kube/config"
+    #   environment:
+    #     KUBECONFIG: "{{ kubeconfig_path }}"
+
     - name: Check if Minikube is running
       shell: "minikube status | grep -q 'host: Running'"
       register: minikube_status
@@ -44,45 +51,86 @@
       command: minikube image load {{ frontend_image }}
       when: frontend_pull is success
 
-    - name: Delete existing frontend deployment if exists
-      command: kubectl delete deployment catvsdog-frontend
-      become: true
+    # - name: Delete existing frontend deployment if exists
+    #   command: kubectl delete deployment catvsdog-frontend
+    #   become: true
+    #   ignore_errors: true
+
+    # - name: Delete existing backend deployment if exists
+    #   command: kubectl delete deployment catvsdog-backend
+    #   become: true
+    #   ignore_errors: true
+
+    # - name: Delete existing frontend service if exists
+    #   command: kubectl delete service catvsdog-frontend-service
+    #   become: true
+    #   ignore_errors: true
+
+    # - name: Delete existing backend service if exists
+    #   command: kubectl delete service catvsdog-backend-service
+    #   become: true
+    #   ignore_errors: true
+
+    - name: Debug - Check if kubectl can access pods
+      shell: |
+        export KUBECONFIG=/home/akash/.kube/config
+        kubectl get pods -A
+      register: kubectl_output
       ignore_errors: true
 
-    - name: Delete existing backend deployment if exists
-      command: kubectl delete deployment catvsdog-backend
-      become: true
-      ignore_errors: true
+    - name: Print kubectl get pods output
+      debug:
+        var: kubectl_output.stdout_lines
 
-    - name: Delete existing frontend service if exists
-      command: kubectl delete service catvsdog-frontend-service
-      become: true
-      ignore_errors: true
+    - name: Fail if kubectl can't authenticate
+      fail:
+        msg: "kubectl failed to authenticate. Check KUBECONFIG or Minikube context."
+      when: kubectl_output.rc != 0
 
-    - name: Delete existing backend service if exists
-      command: kubectl delete service catvsdog-backend-service
-      become: true
-      ignore_errors: true
+    # - name: Apply backend deployment
+    #   command: kubectl apply -f /home/akash/mlops_project/k8s/backend-deployment.yaml
+    #   become: true
+    #   register: backend_deployment
 
     - name: Apply backend deployment
-      command: kubectl apply -f k8s/backend-deployment.yaml
-      become: true
-      register: backend_deployment
+      command:
+        cmd: kubectl apply --validate=false -f /home/akash/mlops_project/k8s/backend-deployment.yaml
+      environment:
+        KUBECONFIG: /home/akash/.kube/config
+
+
+    # - name: Apply frontend deployment
+    #   command: kubectl apply -f k8s/frontend-deployment.yaml
+    #   become: true
+    #   register: frontend_deployment
 
     - name: Apply frontend deployment
-      command: kubectl apply -f k8s/frontend-deployment.yaml
-      become: true
-      register: frontend_deployment
+      command:
+        cmd: kubectl apply --validate=false -f /home/akash/mlops_project/k8s/frontend-deployment.yaml
+      environment:
+        KUBECONFIG: /home/akash/.kube/config
+
+    # - name: Wait for pods to be ready
+    #   shell: kubectl wait --for=condition=Ready pod -l app=catvsdog --timeout=120s
+    #   become: true
+    #   register: ready_wait
+    #   ignore_errors: true
 
     - name: Wait for pods to be ready
       shell: kubectl wait --for=condition=Ready pod -l app=catvsdog --timeout=120s
-      become: true
-      register: ready_wait
-      ignore_errors: true
+      environment:
+        KUBECONFIG: "/home/akash/.kube/config"
+
+
+    # - name: Get pod status
+    #   command: kubectl get pods -l app=catvsdog
+    #   become: true
+    #   register: pod_status
 
     - name: Get pod status
       command: kubectl get pods -l app=catvsdog
-      become: true
+      environment:
+        KUBECONFIG: "/home/akash/.kube/config"
       register: pod_status
 
     - name: Get application URLs
