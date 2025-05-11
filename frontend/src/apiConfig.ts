@@ -1,5 +1,5 @@
-// API URL configuration for Kubernetes with external IP and NodePort
-export const API_BASE_URL = 'http://catvsdigclassifier.com/backend';
+// API URL configuration - single source of truth for backend URL
+export const API_BASE_URL = 'http://catvsdog.example.com/backend';
 
 // Helper function to get the full API URL
 export const getApiUrl = (endpoint: string): string => {
