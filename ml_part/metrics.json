@@ -1,22 +1,22 @@
 {
     "training": {
-        "epochs_completed": 1,
-        "final_accuracy": 0.5713124871253967,
-        "final_loss": 0.6742475628852844
+        "epochs_completed": 10,
+        "final_accuracy": 0.7926874756813049,
+        "final_loss": 0.44955945014953613
     },
     "validation": {
-        "final_accuracy": 0.6495748162269592,
-        "final_loss": 0.6137142777442932
+        "final_accuracy": 0.8106553554534912,
+        "final_loss": 0.4334535598754883
     },
     "testing": {
-        "accuracy": 0.6582000255584717,
-        "loss": 0.6045479774475098
+        "accuracy": 0.8285999894142151,
+        "loss": 0.39166226983070374
     },
     "parameters": {
         "img_height": 150,
         "img_width": 150,
         "batch_size": 32,
         "learning_rate": 0.001,
-        "max_epochs": 1
+        "max_epochs": 10
     }
 }
