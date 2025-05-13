@@ -15,7 +15,7 @@ IMG_WIDTH = 150
 CHANNELS = 3
 
 # Model parameters
-EPOCHS = 1
+EPOCHS = 10
 LEARNING_RATE = 0.001
 OPTIMIZER = "adam"
 NUM_CLASSES = 2  # Cat and Dog
