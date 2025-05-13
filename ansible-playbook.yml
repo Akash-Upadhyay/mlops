@@ -122,11 +122,77 @@
       environment:
         KUBECONFIG: /home/akash/.kube/config
 
+    - name: Apply backend HPA
+      command:
+        cmd: kubectl apply --validate=false -f /home/akash/mlops_project/k8s/backend-hpa.yaml
+      environment:
+        KUBECONFIG: /home/akash/.kube/config
+      register: backend_hpa
+      
+    - name: Apply frontend HPA
+      command:
+        cmd: kubectl apply --validate=false -f /home/akash/mlops_project/k8s/frontend-hpa.yaml
+      environment:
+        KUBECONFIG: /home/akash/.kube/config
+      register: frontend_hpa
+
+    - name: Enable metrics-server if not already enabled
+      command: minikube addons enable metrics-server
+      ignore_errors: true
+
+    # Deploy monitoring components
+    - name: Create monitoring directory if it doesn't exist
+      file:
+        path: /home/akash/mlops_project/k8s/monitoring
+        state: directory
+        mode: '0755'
+      
+    - name: Apply Prometheus configuration
+      command:
+        cmd: kubectl apply --validate=false -f /home/akash/mlops_project/k8s/monitoring/prometheus-config.yaml
+      environment:
+        KUBECONFIG: /home/akash/.kube/config
+      ignore_errors: true
+      
+    - name: Apply Prometheus deployment
+      command:
+        cmd: kubectl apply --validate=false -f /home/akash/mlops_project/k8s/monitoring/prometheus-deployment.yaml
+      environment:
+        KUBECONFIG: /home/akash/.kube/config
+      ignore_errors: true
+      
+    - name: Apply Grafana configuration
+      command:
+        cmd: kubectl apply --validate=false -f /home/akash/mlops_project/k8s/monitoring/grafana-config.yaml
+      environment:
+        KUBECONFIG: /home/akash/.kube/config
+      ignore_errors: true
+      
+    - name: Apply Grafana dashboards
+      command:
+        cmd: kubectl apply --validate=false -f /home/akash/mlops_project/k8s/monitoring/grafana-dashboards.yaml
+      environment:
+        KUBECONFIG: /home/akash/.kube/config
+      ignore_errors: true
+      
+    - name: Apply Grafana deployment
+      command:
+        cmd: kubectl apply --validate=false -f /home/akash/mlops_project/k8s/monitoring/grafana-deployment.yaml
+      environment:
+        KUBECONFIG: /home/akash/.kube/config
+      ignore_errors: true
+      
+    - name: Apply ServiceMonitor configuration
+      command:
+        cmd: kubectl apply --validate=false -f /home/akash/mlops_project/k8s/monitoring/service-monitor.yaml
+      environment:
+        KUBECONFIG: /home/akash/.kube/config
+      ignore_errors: true
+
     - name: Wait for pods to be ready
       shell: kubectl wait --for=condition=Ready pod -l app=catvsdog --timeout=120s
       environment:
         KUBECONFIG: "/home/akash/.kube/config"
-
 
     # - name: Get pod status
     #   command: kubectl get pods -l app=catvsdog
@@ -139,17 +205,39 @@
         KUBECONFIG: "/home/akash/.kube/config"
       register: pod_status
 
+    - name: Get HPA status
+      command: kubectl get hpa
+      environment:
+        KUBECONFIG: "/home/akash/.kube/config"
+      register: hpa_status
+      
+    - name: Get monitoring status
+      command: kubectl get pods -l "app in (prometheus, grafana)"
+      environment:
+        KUBECONFIG: "/home/akash/.kube/config"
+      register: monitoring_status
+      ignore_errors: true
+
     - name: Get application URLs
       shell: |
         FRONTEND_URL="http://$(minikube ip):$(kubectl get svc catvsdog-frontend-service -o jsonpath='{.spec.ports[0].nodePort}')"
         BACKEND_URL="http://$(minikube ip):$(kubectl get svc catvsdog-backend-service -o jsonpath='{.spec.ports[0].nodePort}')"
+        PROMETHEUS_URL="http://$(minikube ip):$(kubectl get svc prometheus-service -o jsonpath='{.spec.ports[0].nodePort}')"
+        GRAFANA_URL="http://$(minikube ip):$(kubectl get svc grafana-service -o jsonpath='{.spec.ports[0].nodePort}')"
         echo "Frontend URL: $FRONTEND_URL"
         echo "Backend URL: $BACKEND_URL"
+        echo "Prometheus URL: $PROMETHEUS_URL"
+        echo "Grafana URL: $GRAFANA_URL (admin/admin)"
       register: app_urls
+      ignore_errors: true
 
     - name: Display application status
       debug:
         msg: 
           - "Deployment status:"
           - "{{ pod_status.stdout_lines }}"
-          - "{{ app_urls.stdout_lines }}"
+          - "HPA status:"
+          - "{{ hpa_status.stdout_lines }}"
+          - "Monitoring status:"
+          - "{{ monitoring_status.stdout_lines | default(['No monitoring pods found']) }}"
+          - "{{ app_urls.stdout_lines | default(['URLs could not be retrieved']) }}"

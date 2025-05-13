@@ -1,0 +1,48 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": null,
+    "title": "Simple Dashboard",
+    "tags": ["node"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "panels": [
+      {
+        "title": "CPU Usage",
+        "type": "graph",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 8
+        },
+        "id": 1,
+        "targets": [
+          {
+            "expr": "node_cpu_seconds_total{mode=\"user\"} / on(instance) group_left sum by(instance) (node_cpu_seconds_total) * 100",
+            "format": "time_series",
+            "intervalFactor": 1,
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "percent",
+            "label": null,
+            "logBase": 1,
+            "max": "100",
+            "min": "0",
+            "show": true
+          },
+          {
+            "format": "short",
+            "label": null,
+            "logBase": 1,
+            "show": true
+          }
+        ]
+      }
+    ]
+  },
+  "overwrite": true
+} 
